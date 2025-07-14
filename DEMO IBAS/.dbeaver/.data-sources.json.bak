@@ -1,0 +1,95 @@
+{
+	"folders": {},
+	"connections": {
+		"oracle_thin-197e44bd42e-4c41a92ecb34252a": {
+			"provider": "oracle",
+			"driver": "oracle_thin",
+			"name": "IBAS_CLONE_HYPERSCAL",
+			"save-password": true,
+			"configuration": {
+				"database": "IBAS_CLONE_HYPERSCAL",
+				"url": "jdbc:oracle:thin:@(DESCRIPTION \u003d (ADDRESS \u003d (PROTOCOL \u003d TCP)(HOST \u003d ibas4.db.converge.myhsid.com)(PORT \u003d 1521)) (CONNECT_DATA \u003d (SERVER \u003d DEDICATED) (SERVICE_NAME \u003d ibas) ) )",
+				"configurationType": "MANUAL",
+				"type": "dev",
+				"closeIdleConnection": true,
+				"properties": {
+					"useFetchSizeWithLongColumn": "true",
+					"loginTimeout": "20",
+					"oracle.jdbc.jsonDefaultGetObjectType": "java.lang.String",
+					"oracle.jdbc.fanEnabled": "false"
+				},
+				"provider-properties": {
+					"@dbeaver-connection-type@": "TNS",
+					"show-only-one-schema@": "false",
+					"@dbeaver-check-schema-content@": "false",
+					"@dbeaver-always-show-dba@": "false",
+					"@dbeaver-always-use-dba-views@": "false",
+					"@dbeaver-meta-use-sys-schema@": "false",
+					"@dbeaver-meta-use-simple-constraints@": "false",
+					"@dbeaver-use-rule-hint@": "false",
+					"@dbeaver-use-meta-optimizer@": "true",
+					"@dbeaver-meta-use-alternative-table-query@": "true",
+					"oracle.meta-search-in-synonyms": "false",
+					"oracle.show-date-as-date": "false",
+					"@dbeaver-tns-path@": "D:\\app\\Network\\Admin",
+					"@dbeaver-sid-service@": "SERVICE"
+				},
+				"auth-model": "oracle_native"
+			}
+		},
+		"oracle_thin-197eebe694f-4d5a3f3f88616e27": {
+			"provider": "oracle",
+			"driver": "oracle_thin",
+			"name": "IBAS_PROD",
+			"save-password": true,
+			"configuration": {
+				"host": "192.168.99.16",
+				"port": "1521",
+				"database": "IBAS",
+				"url": "jdbc:oracle:thin:@//192.168.99.16:1521/IBAS",
+				"configurationType": "MANUAL",
+				"type": "dev",
+				"closeIdleConnection": true,
+				"properties": {
+					"useFetchSizeWithLongColumn": "true",
+					"loginTimeout": "20",
+					"oracle.jdbc.jsonDefaultGetObjectType": "java.lang.String",
+					"oracle.jdbc.fanEnabled": "false"
+				},
+				"provider-properties": {
+					"@dbeaver-connection-type@": "BASIC",
+					"show-only-one-schema@": "false",
+					"@dbeaver-check-schema-content@": "false",
+					"@dbeaver-always-show-dba@": "false",
+					"@dbeaver-always-use-dba-views@": "false",
+					"@dbeaver-meta-use-sys-schema@": "false",
+					"@dbeaver-meta-use-simple-constraints@": "false",
+					"@dbeaver-use-rule-hint@": "false",
+					"@dbeaver-use-meta-optimizer@": "true",
+					"@dbeaver-meta-use-alternative-table-query@": "true",
+					"oracle.meta-search-in-synonyms": "false",
+					"oracle.show-date-as-date": "false",
+					"@dbeaver-tns-path@": "D:\\app\\Network\\Admin",
+					"@dbeaver-sid-service@": "SERVICE"
+				},
+				"auth-model": "oracle_native"
+			}
+		}
+	},
+	"connection-types": {
+		"dev": {
+			"name": "Development",
+			"color": "255,255,255",
+			"description": "Regular development database",
+			"auto-commit": true,
+			"confirm-execute": false,
+			"confirm-data-change": false,
+			"smart-commit": false,
+			"smart-commit-recover": true,
+			"auto-close-transactions": true,
+			"close-transactions-period": 1800,
+			"auto-close-connections": true,
+			"close-connections-period": 14400
+		}
+	}
+}
