@@ -5,6 +5,12 @@ FROM usermaster  WHERE USERCODE ='ARUL';
 s_user_code = i_dw.getitemstring(currentrow,'usercode')
 l_ret = i_dw_2.retrieve(s_user_code, gs_divisionCode)
 
+
+----USER TYPE MASTER
+SELECT  usertypemaster.usertypename ,
+		  usertypemaster.usertypecode     
+	  FROM usertypemaster   
+
 --USER RIGHT
  SELECT  userrightsmaster.usercode ,           
 			userrightsmaster.rightscode,

@@ -669,21 +669,161 @@ SELECT  applofexttranhdr.tranno ,
 		end if		
 		
 		--VALIDASI f_overrideArrearsPolicyType(iuo_subscriber, s_arrears_override_policy )
+		decimal {2} ld_ARBalance
+
+		//------------------------------------------------------------
+		// validate policy on no of months a/r min requirement - start
+		//------------------------------------------------------------
 		
 		
+		ld_ARBalance = 0.00
+		--check if subscriber has a/r balances
+		
+		if not iuo_subscriber.getARBalance(ld_ARBalance,1) then
+			guo_func.msgbox("Warning!", iuo_subscriber.lastSQLCode + "~r~n" + &
+				iuo_subscriber.lastSQLErrText)
+		end if
+		
+		--pop up override policy window for authorization
+		if ld_ARBalance > 0.00 then
+			if guo_func.msgbox("Policy Override!!!", &
+									"The current subscriber has a/r balances.  You can not continue with this request.  Do you want to override this policy?", &										
+									gc_Question, &
+									gc_yesNo, &
+									"Please secure an authorization for overriding this policy.") = 1 then
+				
+				s_arrears_override_policy.overridePolicyTypeCode 	= '001'
+				s_arrears_override_policy.policyCode 					= '001'
+				s_arrears_override_policy.reqType						= 'arrears'
+				s_arrears_override_policy.acctNo 						= iuo_subscriber.acctNo
+				s_arrears_override_policy.arBalance 					= ld_ARBalance
+				s_arrears_override_policy.subscriberName			= iuo_subscriber.subscriberName
+				
+				openwithparm(w_online_authorization,s_arrears_override_policy)	
+				 
+				if message.stringParm = 'CN' then
+					guo_func.msgbox("Policy Override!!!", &
+									"You have cancelled the authorization.  This will cancel your transaction.", &										
+									gc_Information, &
+									gc_OKOnly, &
+									"Please secure an authorization for overriding this policy.")
+									
+					// reset entry
+					return false
+				elseif message.stringParm = 'DP' then
+					return false
+				elseif message.stringParm = 'ER' then
+					return false
+				end if
+			else  // policy ignored close window transaction
+				guo_func.msgbox("Policy Override!!!", &
+								"You have cancelled the authorization.  This will cancel your transaction.", &										
+								gc_Information, &
+								gc_OKOnly, &
+								"Please secure an authorization for overriding this policy.")
+								
+				// reset entry		
+				return false
+			end if
+			
+		end if
+		return true
+		--END VALIDASI
+		
+		--CONTINUE PROCESS
+		
+		ib_withPendingInstallations = FALSE
+		
+		long ll_noOfMlineApplications
+		ll_noOfMlineApplications = 0
+		select count(*) 
+		into :ll_noOfMlineApplications
+		from arAcctSubscriber
+		where acctNo = :ls_acctNo 
+		and applicationStatusCode not in ('AC', 'CN')
+		and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+		using SQLCA;
+
+		if SQLCA.SQLCode = -1 Then
+			guo_func.msgBox('SM-0000001',"Accessing arAcctSubscriber ~nSQLCode    : "+string(SQLCA.SQLCode) + "SQLErrText : " + SQLCA.SQLErrText)
+			return
+		end if
+		if isnull(ll_noOfMlineApplications) then ll_noOfMlineApplications = 0
+		
+		long ll_noOfExtApplications
+		ll_noOfExtApplications = 0
+		select count(*) 
+		into :ll_noOfExtApplications
+		from applOfExtTranHdr
+		where acctNo = :ls_acctNo 
+		and applicationStatusCode not in ('AC', 'CN')
+		and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+		using SQLCA;
+
+		if SQLCA.SQLCode = -1 Then
+			guo_func.msgBox('SM-0000001',"Accessing arAcctSubscriber ~nSQLCode    : "+string(SQLCA.SQLCode) + "SQLErrText : " + SQLCA.SQLErrText)
+			return
+		end if
+		if isnull(ll_noOfExtApplications) then ll_noOfExtApplications = 0		
+		
+		select count(*) 
+		into :ll_noOfApplTransfer
+		from applOfTransferTranHdr
+		where acctNo = :ls_acctNo 
+		and applicationStatusCode not in ('AC', 'CN')
+		and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+		using SQLCA;
+		if SQLCA.SQLCode = -1 Then
+			guo_func.msgBox('SM-0000001',"Accessing applOfTransferTranHdr ~nSQLCode    : "+string(SQLCA.SQLCode) + "SQLErrText : " + SQLCA.SQLErrText)
+			return
+		end if
+		if isnull(ll_noOfApplTransfer) then ll_noOfApplTransfer = 0
+
+		// installation extension fee shall use succeedingExtInstallFee
+		
+		if ll_noOfExtApplications > 0 or ll_noOfMlineApplications > 0 or ll_noOfApplTransfer > 0 then
+			ib_withPendingInstallations = TRUE
+		end if
+		
+		string ls_packageCode
+		ls_packageCode = iuo_subscriber.packageCode
+		
+		select extFirstSTBInstallFee, extSucceedingSTBInstallFee, stbDepReqPerBox, stbPricePerBox
+		into :id_extFirstSTBInstallFee, :id_extSucceedingSTBInstallFee, :id_stbDepReqPerBox, :id_stbPricePerBox
+		FROM 		arPackageMaster
+		WHERE 	packageCode = :ls_packageCode
+		and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+		USING SQLCA;			
+		If SQLCA.SQLcode = -1 then
+			guo_func.msgBox('SM-0000001',"select in arPackageMaster SQLCode    : "+string(SQLCA.SQLCode) + "SQLErrText : " + SQLCA.SQLErrText)
+			return
+		end if		
+		
+		if isnull(id_extFirstSTBInstallFee) then id_extFirstSTBInstallFee = 0.00
+		if isnull(id_extSucceedingSTBInstallFee) then  id_extSucceedingSTBInstallFee = 0.00
+		if isnull(id_stbDepReqPerBox) then  id_stbDepReqPerBox = 0.00
+		if isnull(id_stbPricePerBox) then 	id_stbPricePerBox = 0.00
+				
+		dw_header.setColumn( 'preferredDateTimeFrom' )
+		
+		--END PROCESS GET HEADER DATA
        
-	---FORM DETAIL
-	  SELECT  acquisitiontypemaster.acquisitiontypename ,           
-		applofexttrandtl.qty ,          
-		 applofexttrandtl.rate ,           
-		applofexttrandtl.amount ,          
-		 acquisitiontypemaster.priority ,          
-		 applofexttrandtl.acquisitiontypecode ,          
-		 '' requiresApproval, ''packageCode, ''packagename
-		FROM applofexttrandtl ,           
-		acquisitiontypemaster     
-		WHERE ( applofexttrandtl.acquisitiontypecode = acquisitiontypemaster.acquisitiontypecode )
-		 and          ( ( applofexttrandtl.tranno = :as_tranNo ) )  
+---FORM DETAIL
+  SELECT  acquisitiontypemaster.acquisitiontypename ,           
+	applofexttrandtl.qty ,          
+	 applofexttrandtl.rate ,           
+	applofexttrandtl.amount ,          
+	 acquisitiontypemaster.priority ,          
+	 applofexttrandtl.acquisitiontypecode ,          
+	 '' requiresApproval, ''packageCode, ''packagename
+	FROM applofexttrandtl ,           
+	acquisitiontypemaster     
+	WHERE ( applofexttrandtl.acquisitiontypecode = acquisitiontypemaster.acquisitiontypecode )
+	 and          ( ( applofexttrandtl.tranno = :as_tranNo ) )  
 
 --SAVE BUTTON
 
@@ -920,7 +1060,8 @@ if ld_advance_mrc > 0 then
 		----------------------------
 	
 end if 
-// save record to APPLEXTTRANHDRandDTL
+
+--save record to APPLEXTTRANHDRandDTL
 if trigger event ue_save_applOfExtTrahHdrAndDtl(ls_acctno, ld_totalInstFee) = -1 then
    return -1
 end IF
@@ -946,7 +1087,6 @@ ls_specialinstructions			= trim(dw_header.getItemString(ll_row, 'specialInstruct
 ldt_preferreddatetimefrom	= dw_header.getItemDateTime(ll_row, 'preferreddatetimefrom')
 ldt_preferreddatetimeto		= dw_header.getItemDateTime(ll_row, 'preferreddatetimeto')
 
---Validation
 if ls_acctno = '' or isnull(ls_acctno) then
 	is_msgNo    = 'SM-0000001'
 	is_msgTrail = 'Saving Subscriber Master : ~r~n Cannot save with unknown Account No.'
@@ -1017,7 +1157,6 @@ using SQLCA;
 if ll_ctr_pa_area > 0 or  Pos(ls_province_name,'MANILA') > 0 then
 	lb_pa_area = True
 end if
-
 
 
 --Insert record for applOfExtTranHdr
@@ -1166,13 +1305,39 @@ for ll_loop = 1 to upperBound(id_rateBreakdowns)
 next
 
 return 0
--------------------------------------
+--END VALIDASI------------------
 
 if	not guo_func.set_number(ls_tranTypeCode, ll_tranNo) then
 	return -1	
 end IF
 
 --VALIDASI guo_func.set_number(ls_tranTypeCode, ll_tranNo)
+update sysTransactionParam
+	set recordLocked = 'N',
+		 lockedUserName = '',
+		 lastTransactionNo = :al_tranno
+where recordLocked = 'Y' 
+       and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+		and tranTypeCode = :as_tranType
+		using SQLCA;
+if SQLCA.sqlnrows < 1 then
+	guo_func.msgbox("SM-0000010", as_tranType 	+ "~r~n" + &
+						string(SQLCA.sqlcode) 	+ "~r~n" + &
+						SQLCA.sqlerrtext, "")
+	return false
+elseif SQLCA.sqlcode <> 0 then
+	guo_func.msgbox("SM-0000001", "UPDATE - sysTransactionParam" + "~r~n" + &
+										  string(SQLCA.sqlcode) 	+ "~r~n" + &
+										  SQLCA.sqlerrtext, "Transaction Type: [" + as_tranType + "]")
+	return FALSE
+end if
+
+commit using SQLCA;
+
+return TRUE
+
+----END VALIDASI---------------
 
 ==================================================
 --Apply Open Credits
@@ -1308,16 +1473,16 @@ if not uo_subs_advar.getOcNextTranNo() then
 	return -1
 end IF
 
---VALIDASI uo_subs_advar.getOcNextTranNo()
-astMethodAccessed = 'getOCNextTranNo'
-
-long ll_tranNo
-if not guo_func.get_nextnumber('OPENCR', ll_tranNo, 'WITH LOCK') then	
-	lastSQLCode = '-2'
-	lastSQLErrText = 'Could not obtain the next OC No.'
-	return FALSE
-end if
-
+	--VALIDASI uo_subs_advar.getOcNextTranNo()
+	astMethodAccessed = 'getOCNextTranNo'
+	
+	long ll_tranNo
+	if not guo_func.get_nextnumber('OPENCR', ll_tranNo, 'WITH LOCK') then	
+		lastSQLCode = '-2'
+		lastSQLErrText = 'Could not obtain the next OC No.'
+		return FALSE
+	end IF	
+	
 	--VALIDASI guo_func.get_nextnumber('OPENCR', ll_tranNo, 'WITH LOCK')
 	f_displayStatus("Retrieving next transaction # for " + as_trantype + "...")
 	
@@ -1398,17 +1563,15 @@ end if
 	al_tranNo = al_tranNo + 1
 	f_closeStatus()
 	
-	return true
-	
-	--END VALIDASI 
+	return true	
+-------END VALIDASI --------------------------
 
 --decrement to 1 to avoid jumping of transaction number
 --incase there is an error in saving later on
 ocTranNo = ll_tranNo - 1
 
 return TRUE
---END VALIDASI
-
+--END VALIDASI-----------------------
 
 if not uo_subs_advar.setParentTranNo(is_tranNo) then
 	is_msgno = 'SM-0000001'
@@ -1585,15 +1748,6 @@ end if
 
 return 0
 -----END VALIDASI
-
-if not iuo_glPoster.postGLEntries() then
-	is_msgno 	= 'SM-0000001'
-	is_msgtrail =  iuo_glPoster.errorMessage
-	is_sugtrail = iuo_glPoster.suggestionRemarks
-	return -1
-end if
-
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 if not isNull(gb_authorizationNo) and gb_authorizationNo <> "" then
 
@@ -2009,7 +2163,7 @@ end if
 	
 	return TRUE
 
------------END VALIDASI
+-----------END VALIDASI--------------------
 
 if luo_subscriber.autocreatejo_IPTV(is_tranNo, ls_jono_iptv) < 0 then
 	is_msgNo    = 'SM-0000001'
@@ -2138,11 +2292,12 @@ end if
 		al_tranNo = al_tranNo + 1
 		f_closeStatus()
 		
-		return TRUE
+		return TRUE	
+		
+		---END VALIDASI guo_func.get_nextnumber("JO", ll_joNo, "WITH LOCK")
 	
-	------------END VALIDASI
 	
-	ls_joNo 				= string(ll_joNo, "00000000")
+	ls_joNo 			= string(ll_joNo, "00000000")
 	ls_tranTypeCode 	= 'APPLYEXT'
 	ls_lineManCode		= '00013'
 
@@ -2198,11 +2353,164 @@ end if
 	
 	if not uf_set_referenceJoNo(ls_tranTypeCode, as_tranno_ext, ls_joNo) then
 		return -1
+	end IF
+	
+	--VALIDASI uf_set_referenceJoNo(ls_tranTypeCode, as_tranno_ext, ls_joNo) 
+	
+	if as_trantypecode = 'APPLYML' then
+	update arAcctSubscriber
+		set referenceJONo = :as_jono
+	 where tranNo = :as_tranno
+	 and divisionCode = :gs_divisionCode
+	and companyCode = :gs_companyCode
+	using SQLCA;
+	elseif as_trantypecode = 'CONVD2F' then
+		update conversiondoctofibtran
+			set referenceJONo = :as_jono
+		 where tranNo = :as_tranno
+		 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+		using SQLCA;
+	elseif as_trantypecode = 'CONVD2DF' then
+		update CONVERSIONDSLTODOCFIBTRAN
+			set referenceJONo = :as_jono
+		 where tranNo = :as_tranno
+		 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+		using SQLCA;
+	elseif as_trantypecode = 'APPLYEXT' then
+		update applOfExtTranHdr
+			set referenceJONo = :as_jono
+		 where tranNo = :as_tranno
+		 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+		using SQLCA;
+	elseif as_trantypecode = 'APPLEXTHO' then
+		update applOfExtHotelTranHdr
+			set referenceJONo = :as_jono
+		 where tranNo = :as_tranno
+		 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+		using SQLCA;
+	elseif as_trantypecode = 'APPLYPD' then
+		update applOfPermanentDiscTranHdr
+			set referenceJONo = :as_jono
+		 where tranNo = :as_tranno
+		 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+		using SQLCA;
+	elseif as_trantypecode = 'APPLYTRANSFR' then
+		update applOfTransferTranHdr
+			set referenceJONo = :as_jono
+		 where tranNo = :as_tranno
+		 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+		using SQLCA;
+	elseif as_trantypecode = 'APPLYXTDSRVC' then
+		update applExtendedServicesTranHdr
+			set referenceJONo = :as_jono
+		 where tranNo = :as_tranno
+		 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+		using SQLCA;
+	elseif as_trantypecode = 'PULLOUTADS' then
+		update adsTranHdr
+			set referenceJONo = :as_jono
+		 where tranNo = :as_tranno
+		 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+		using SQLCA;
+	elseif as_trantypecode = 'APPLEXTD' then
+		update applOfExtDiscTranHdr
+			set referenceJONo = :as_jono
+		 where tranNo = :as_tranno
+		 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+		using SQLCA;
+	elseif as_trantypecode = 'APPLYDEAC' then
+		update applOfDeactivationTranHdr
+			set referenceJONo = :as_jono
+		 where tranNo = :as_tranno
+		 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+		using SQLCA;
+	elseif as_trantypecode = 'APPLMLEXTREA' then
+		update applOfReactivationTranHdr
+			set referenceJONo = :as_jono
+		 where tranNo = :as_tranno
+		 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+		using SQLCA;
+	elseif as_trantypecode = 'SERVCALL' then
+		update serviceCallTranHdr
+			set referenceJONo = :as_jono
+		 where tranNo = :as_tranno
+		 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+		using SQLCA;
+	elseif as_trantypecode = 'REPANADIGI' then
+		update AppOfDigitalConversionTranHdr
+			set referenceJONo = :as_jono
+		 where tranNo = :as_tranno
+		 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+		using SQLCA;
+	elseif as_trantypecode = 'SERVMGMT' then
+		update serviceCallMaster
+			set referenceJONo = :as_jono
+		 where tranNo = :as_tranno
+		 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+		using SQLCA;	
+	elseif as_trantypecode = 'ADDFIBERTV' then
+		update APPLOFVASTRANHDR
+			set referenceJONo = :as_jono
+		 where tranNo = :as_tranno
+		 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+		using SQLCA;	
 	end if
+	if SQLCA.sqlcode <> 0 then
+		return FALSE
+	end if
+	
+	return TRUE
+	
+	--END VALIDASI uf_set_referenceJoNo(ls_tranTypeCode, as_tranno_ext, ls_joNo)
+	
 	
 	if not guo_func.set_number("JO", ll_joNo) then
 		return -1
-	end if
+	end IF
+	
+	--VALIDASI guo_func.set_number("JO", ll_joNo)
+	
+	update sysTransactionParam
+	set recordLocked = 'N',
+		 lockedUserName = '',
+		 lastTransactionNo = :al_tranno
+		where recordLocked = 'Y' 
+		       and divisionCode = :gs_divisionCode
+				and companyCode = :gs_companyCode
+				and tranTypeCode = :as_tranType
+				using SQLCA;
+		if SQLCA.sqlnrows < 1 then
+			guo_func.msgbox("SM-0000010", as_tranType 	+ "~r~n" + &
+								string(SQLCA.sqlcode) 	+ "~r~n" + &
+								SQLCA.sqlerrtext, "")
+			return false
+		elseif SQLCA.sqlcode <> 0 then
+			guo_func.msgbox("SM-0000001", "UPDATE - sysTransactionParam" + "~r~n" + &
+												  string(SQLCA.sqlcode) 	+ "~r~n" + &
+												  SQLCA.sqlerrtext, "Transaction Type: [" + as_tranType + "]")
+			return FALSE
+		end if
+		
+		commit using SQLCA;
+		
+		return TRUE
+		
+	--END VALIDASI SET NUMBER
 	
 	update subscriberaddonmaster
 	set jono_iptv = :ls_joNo, TRANNO_EXT = :as_tranno_ext
@@ -2227,7 +2535,8 @@ end if
 	as_jono = ls_jono
 	
 	return 0
-	--END VALIDASI
+	
+	--END VALIDASI guo_func.set_number("JO", ll_joNo)-----------------
 
 
 if trigger event ue_salesaddontranhdr(ls_acctno, ll_extensions, ls_mop, ls_installtype, ls_jono_iptv, long(ls_no_of_months) ) = -1 then
@@ -2235,130 +2544,217 @@ if trigger event ue_salesaddontranhdr(ls_acctno, ll_extensions, ls_mop, ls_insta
 end if 
 
 ---VALIDASI ue_salesaddontranhdr(ls_acctno, ll_extensions, ls_mop, ls_installtype, ls_jono_iptv, long(ls_no_of_months)
-long ll_tranno
-SELECT sales_seq.nextval into :ll_tranno from dual using SQLCA;
 
-string ls_tranno
-ls_tranno		=	'AO'+string(ll_tranNo, '000000')
-
-long li_addon_id
-string ls_packagecode, ls_itemcode
-
-decimal ld_total_amount, ld_outright_price, ld_staggered_price ,ld_delivery_fee, ld_setup_fee , ld_total_delivery_fee
-decimal ld_total_setup_fee
-
-ld_total_amount = 0.00
-ld_total_delivery_fee = 0.00
-ld_total_setup_fee = 0.00
-
-INT i
-
-string ls_mop , ls_mode_of_delivery
-
-ls_packagecode = dw_detail.getItemString(dw_detail.getrow(),'packageCode')
+	long ll_tranno
+	SELECT sales_seq.nextval into :ll_tranno from dual using SQLCA;
 	
-
-for i = 1 to al_noofextensions
+	string ls_tranno
+	ls_tranno		=	'AO'+string(ll_tranNo, '000000')
 	
+	long li_addon_id
+	string ls_packagecode, ls_itemcode
 	
-	select addon_id into :li_addon_id from arpackagemaster
-	where packagecode = :ls_packagecode
-	and divisioncode = :Gs_divisioncode
-	and companycode = :gs_companycode
-	using SQLCA;
+	decimal ld_total_amount, ld_outright_price, ld_staggered_price ,ld_delivery_fee, ld_setup_fee , ld_total_delivery_fee
+	decimal ld_total_setup_fee
 	
+	ld_total_amount = 0.00
+	ld_total_delivery_fee = 0.00
+	ld_total_setup_fee = 0.00
 	
-	select outright_price, delivery_fee, setup_fee, itemcode into :ld_outright_price, :ld_delivery_fee, :ld_setup_fee, :ls_itemcode
-	from dynamic_pricing_ao
-	where id = :li_addon_id
-	using SQLCA;
+	INT i
 	
-	ls_mop = 'staggered'
-	if as_mop = 'O' then
-		ld_total_amount = ld_total_amount + ld_outright_price
-		ls_mop = 'outright'
-	end if
+	string ls_mop , ls_mode_of_delivery
 	
-	ld_total_delivery_fee = ld_total_delivery_fee + ld_delivery_fee
-	
-	ls_mode_of_delivery = 'delivery only'
-	
-	if as_install_type = 'INSTALL' then
-		ld_total_setup_fee = ld_total_setup_fee + ld_setup_fee + ld_delivery_fee
-		ls_mode_of_delivery = 'deliver and install'
-	end if
+	ls_packagecode = dw_detail.getItemString(dw_detail.getrow(),'packageCode')
 		
 	
-	INSERT INTO SOLD_ADD_ON_ITEMS
-	(TRANNO,acctno, ITEMCODE, SERIALNO, DIVISIONCODE, COMPANYCODE, USERADD, DATEADD, JONO, ISIPTV, USED, addon_id, mop, mode_of_delivery )
-	VALUES
-	(:ls_tranno, :as_acctno,:ls_itemCode, '', :gs_divisioncode, :Gs_companycode, :gs_username, sysdate, :as_jono, 'Y', 'N', :li_addon_id, :ls_mop, :ls_mode_of_delivery)
-	using SQLCA;
-	
-next
-
---is_tranNo 		= string(ll_tranNo, '00000000')
-i_dt_timestamp	= guo_func.get_server_date()
-
-
-insert into salesaddontranhdr (
-				tranNo,
-				tranDate,
-				acctno,
-				refNo,
-				amount,
-				discountAmount,
-				extendedAmount,
-				tranTypeCode,
-				locationCode,
-				useradd,
-				dateadd,
-				divisionCode,
-				companyCode,
-				jono,
-				applicationstatusCODE,
-				modeofpayment,
-				noofmonths,
-				delivery_options,
-				installation_type,
-				deliveryfee,
-				installationfee
-				)
-	  values (
-	  			:ls_tranno,
-				sysdate,
-				:as_acctno,
-				:is_tranno,
-				:ld_total_amount,
-				0.00,
-				:ld_total_amount,	
-				'SALES',
-				null,
-				:gs_username,
-				sysdate,
-				:gs_divisionCode,
-				:gs_companyCode,
-				:as_jono,
-				'OG',
-				:as_mop,
-				:ai_noofmonths,
-				'DELIVERY',
-				:as_install_type,
-				:ld_total_delivery_fee,
-				:ld_total_setup_fee)
+	for i = 1 to al_noofextensions
+		
+		
+		select addon_id into :li_addon_id from arpackagemaster
+		where packagecode = :ls_packagecode
+		and divisioncode = :Gs_divisioncode
+		and companycode = :gs_companycode
 		using SQLCA;
-if SQLCA.SQLCode <> 0 then 
-	is_msgNo    = 'SM-0000001' 
-	is_msgTrail = 'Error inserting into salesTranHdr' + &
-					  '~r~nSQLCode     : ' + string(SQLCA.SQLCode)   + & 
-					  '~r~nSQLErrText  : ' + SQLCA.SQLErrText        + &	
-					  '~r~nSQLDBCode   : ' + String(SQLCA.SQLDBCode) + &
-					  '~r~n~r~nA RollBack will Follow...'
-  return -1		
-end if	
-
-RETURN 1
+		
+		
+		select outright_price, delivery_fee, setup_fee, itemcode into :ld_outright_price, :ld_delivery_fee, :ld_setup_fee, :ls_itemcode
+		from dynamic_pricing_ao
+		where id = :li_addon_id
+		using SQLCA;
+		
+		ls_mop = 'staggered'
+		if as_mop = 'O' then
+			ld_total_amount = ld_total_amount + ld_outright_price
+			ls_mop = 'outright'
+		end if
+		
+		ld_total_delivery_fee = ld_total_delivery_fee + ld_delivery_fee
+		
+		ls_mode_of_delivery = 'delivery only'
+		
+		if as_install_type = 'INSTALL' then
+			ld_total_setup_fee = ld_total_setup_fee + ld_setup_fee + ld_delivery_fee
+			ls_mode_of_delivery = 'deliver and install'
+		end if
+			
+		
+		INSERT INTO SOLD_ADD_ON_ITEMS
+		(TRANNO,acctno, ITEMCODE, SERIALNO, DIVISIONCODE, COMPANYCODE, USERADD, DATEADD, JONO, ISIPTV, USED, addon_id, mop, mode_of_delivery )
+		VALUES
+		(:ls_tranno, :as_acctno,:ls_itemCode, '', :gs_divisioncode, :Gs_companycode, :gs_username, sysdate, :as_jono, 'Y', 'N', :li_addon_id, :ls_mop, :ls_mode_of_delivery)
+		using SQLCA;
+		
+	next
+	
+	--is_tranNo 		= string(ll_tranNo, '00000000')
+	i_dt_timestamp	= guo_func.get_server_date()
+	
+	
+	insert into salesaddontranhdr (
+					tranNo,
+					tranDate,
+					acctno,
+					refNo,
+					amount,
+					discountAmount,
+					extendedAmount,
+					tranTypeCode,
+					locationCode,
+					useradd,
+					dateadd,
+					divisionCode,
+					companyCode,
+					jono,
+					applicationstatusCODE,
+					modeofpayment,
+					noofmonths,
+					delivery_options,
+					installation_type,
+					deliveryfee,
+					installationfee
+					)
+		  values (
+		  			:ls_tranno,
+					sysdate,
+					:as_acctno,
+					:is_tranno,
+					:ld_total_amount,
+					0.00,
+					:ld_total_amount,	
+					'SALES',
+					null,
+					:gs_username,
+					sysdate,
+					:gs_divisionCode,
+					:gs_companyCode,
+					:as_jono,
+					'OG',
+					:as_mop,
+					:ai_noofmonths,
+					'DELIVERY',
+					:as_install_type,
+					:ld_total_delivery_fee,
+					:ld_total_setup_fee)
+			using SQLCA;
+	if SQLCA.SQLCode <> 0 then 
+		is_msgNo    = 'SM-0000001' 
+		is_msgTrail = 'Error inserting into salesTranHdr' + &
+						  '~r~nSQLCode     : ' + string(SQLCA.SQLCode)   + & 
+						  '~r~nSQLErrText  : ' + SQLCA.SQLErrText        + &	
+						  '~r~nSQLDBCode   : ' + String(SQLCA.SQLDBCode) + &
+						  '~r~n~r~nA RollBack will Follow...'
+	  return -1		
+	end if	
+	
+	RETURN 1
 ---------------------END VALIDASI------
+
+
+--Wifi6 Checking
+
+long ll_ctr_wifi5
+long ll_wifi6_tranno
+
+ll_ctr_wifi5 = 0
+
+select count(*) into :ll_ctr_wifi5
+from subscribercpemaster
+where acctno = :ls_acctno
+and divisioncode = :gs_divisioncode
+and companycode = :gs_companycode
+and cpetypecode= 'CM'
+and itemcode in ('00030501',
+'00030419',
+'00030781',
+'00030750',
+'00030762',
+'00030763',
+'00030779',
+'00030771',
+'00030338',
+'00030405',
+'00030311',
+'00030779',
+'00030754') 
+using SQLCA;
+
+if ll_ctr_wifi5 > 0 then
+	
+	if is_netflix then
+		select ADDON_WIFI6.NEXTVAL into :ll_wifi6_tranno from dual using SQLCA;
+		
+		insert into wifi6onsitetran (acctno, divisioncode, companycode, trandate, referencejono,onsite_charge,equipment_charge, id)
+		values (:ls_acctno, :gs_Divisioncode, :gs_companycode, sysdate, :ll_wifi6_tranno, 0, 0, :ll_wifi6_tranno)
+		using SQLCA;
+		
+		
+		
+		
+		insert into JoTranHdr (jono, jodate, trantypecode, acctno, linemancode, referenceno, jostatuscode, useradd, dateadd, divisioncode, companycode, is_auto_create, remarks, specialinstructions)
+		values (:ll_wifi6_tranno, sysdate, 'WIFI6TA', :ls_acctno, '00013', :ll_wifi6_tranno, 'FR', :gs_username, SYSDATE, :GS_DIVISIONCODE, :GS_COMPANYCODE, 'Y', 'Free Wifi6','')
+		using SQLCA;
+	end if 
+else
+	
+	string ls_tranno_amort
+	long ll_ctr_amort
+	
+	ll_ctr_amort = 0
+	
+	select count(*) into :ll_ctr_amort
+	from amortizedarTranhdr
+	where acctno = :ls_acctno
+	and divisioncode = :gs_divisioncode
+	and companycode = :Gs_companycode and artypecode = 'DUFEE'
+	AND REMARKS LIKE 'WIFI6%'
+	group by tranno
+	USING SQLCA;
+	
+	if ll_ctr_amort > 0 then
+		update amortizedartrandtl
+		set billed = 'W'
+		where tranno in (select tranno from amortizedartranhdr
+								where acctno = :ls_acctno
+								and divisioncode = :gs_divisioncode
+								and companycode = :gs_companycode
+								and artypecode = 'DUFEE' AND REMARKS LIKE 'WIFI6%')
+		and billed = 'N'
+		using SQLCA;
+		
+	end if
+
+end if
+
+
+
+
+ib_reqStatus = True
+guo_func.msgBox("Saving Complete.", "You have successfully saved your entry.")
+iw_parent.trigger dynamic event ue_cancel()
+idw_ReqInitPayment.reset()
+
+return 0
 
 
 
