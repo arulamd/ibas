@@ -2251,6 +2251,7 @@ end if
 	ll_adv_records = dw_adv.rowcount()
 	dw_adv.setsort('trandate A, octypecodepriority A')
 	dw_adv.sort()
+	
 for ll_adv_row = 1 to ll_adv_records
 	
 	f_displayStatus('Applying OC Type [' + ls_refOcTypecode + ']...')
@@ -2415,9 +2416,69 @@ for ll_adv_row = 1 to ll_adv_records
 	
 					if ld_forexAmount < 0 then //loss				
 						ld_forexAmount = ld_forexAmount * -1
-						iuo_glPoster.insertGLEntryDebit('', '', ls_glForex, ld_forexAmount)										
-					else                       //gain
-						iuo_glPoster.insertGLEntryCredit('', '', ls_glForex, ld_forexAmount)				  																
+						iuo_glPoster.insertGLEntryDebit('', '', ls_glForex, ld_forexAmount)		
+						
+						--VALIDASI iuo_glPoster.insertGLEntryDebit
+						long ll_insertRow
+		
+							if not initialized then
+								errorMessage = 'Cannot execute InsertGLEntry method for the GL Post Object is not yet initialized.'
+								suggestionRemarks = 'The Initialize method must be performed before calling any other methods.'
+								return False
+							end if
+							
+							ll_insertRow = dw_GLEntries.insertRow(0)
+							if isNull(as_sourceTranTypeCode) or as_sourceTranTypeCode = '' then
+								dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= tranTypeCode
+							else
+								dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= as_sourceTranTypeCode
+							end if
+							if isNull(as_sourceTranNo) or as_sourceTranNo = '' then
+								dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= tranNo
+							else
+								dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= as_sourceTranNo
+							end if
+							dw_GLEntries.object.glAccountCode[ll_insertRow] 		= as_glAccountCode
+							dw_GLEntries.object.debit[ll_insertRow] 				= ad_amount
+							dw_GLEntries.object.credit[ll_insertRow] 				= 0
+							dw_GLEntries.object.recordNo[ll_insertRow] 				= ll_insertRow
+							dw_GLEntries.object.remarks[ll_insertRow] 				= as_remarks
+							
+							return True
+	
+						--END VALIDASI iuo_glPoster.insertGLEntryDebit
+					else                       --gain
+						iuo_glPoster.insertGLEntryCredit('', '', ls_glForex, ld_forexAmount)
+						
+						--VALIDASI INSERTGLENTRY CREDIT
+						long ll_insertRow
+			
+						if not initialized then
+							errorMessage = 'Cannot execute InsertGLEntry method for the GL Post Object is not yet initialized.'
+							suggestionRemarks = 'The Initialize method must be performed before calling any other methods.'
+							return False
+						end if
+						
+						ll_insertRow = dw_GLEntries.insertRow(0)
+						if isNull(as_sourceTranTypeCode) or as_sourceTranTypeCode = '' then
+							dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= tranTypeCode
+						else
+							dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= as_sourceTranTypeCode
+						end if
+						if isNull(as_sourceTranNo) or as_sourceTranNo = '' then
+							dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= tranNo
+						else
+							dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= as_sourceTranNo
+						end if
+						dw_GLEntries.object.glAccountCode[ll_insertRow] 		= as_glAccountCode
+						dw_GLEntries.object.debit[ll_insertRow] 					= 0
+						dw_GLEntries.object.credit[ll_insertRow] 					= ad_amount
+						dw_GLEntries.object.recordNo[ll_insertRow] 				= ll_insertRow
+						dw_GLEntries.object.remarks[ll_insertRow] 				= as_remarks
+						
+						return TRUE
+						
+						--END INSERTGLENTRY CREDIT
 					end if
 	
 				elseif subsCurrencyCode = 'PHP' then
@@ -2695,16 +2756,76 @@ for ll_adv_row = 1 to ll_adv_records
 		if (ld_adv_balance > 0 or ld_adv_balance_usd > 0) and ls_refOcTypecode = 'APPLADV' then
 			
 			string ls_openCreditAccount
-			// =======================================================
-			// 		insert GL Entry: Debit Applicant's Advances
-			// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+			--=======================================================
+			-- 		insert GL Entry: Debit Applicant's Advances
+			-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 			if not getGLIAccount(ls_refOcTypecode, ls_openCreditAccount) then
 				return FALSE
 			end if
 			if subsCurrencyCode = 'USD' then
 				iuo_glPoster.insertGLEntryDebit('SAV-AOCM-DB', '', ls_openCreditAccount, ld_adv_balance_usd)
+				
+				--VALIDASI iuo_glPoster.insertGLEntryDebit
+					long ll_insertRow
+
+					if not initialized then
+						errorMessage = 'Cannot execute InsertGLEntry method for the GL Post Object is not yet initialized.'
+						suggestionRemarks = 'The Initialize method must be performed before calling any other methods.'
+						return False
+					end if
+					
+					ll_insertRow = dw_GLEntries.insertRow(0)
+					if isNull(as_sourceTranTypeCode) or as_sourceTranTypeCode = '' then
+						dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= tranTypeCode
+					else
+						dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= as_sourceTranTypeCode
+					end if
+					if isNull(as_sourceTranNo) or as_sourceTranNo = '' then
+						dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= tranNo
+					else
+						dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= as_sourceTranNo
+					end if
+					dw_GLEntries.object.glAccountCode[ll_insertRow] 		= as_glAccountCode
+					dw_GLEntries.object.debit[ll_insertRow] 				= ad_amount
+					dw_GLEntries.object.credit[ll_insertRow] 				= 0
+					dw_GLEntries.object.recordNo[ll_insertRow] 				= ll_insertRow
+					dw_GLEntries.object.remarks[ll_insertRow] 				= as_remarks
+					
+					return True
+
+					--END VALIDASI iuo_glPoster.insertGLEntryDebit
 			else
 				iuo_glPoster.insertGLEntryDebit('SAV-AOCM-DB', '', ls_openCreditAccount, ld_adv_balance)
+				
+				--VALIDASI iuo_glPoster.insertGLEntryDebit
+					long ll_insertRow
+
+					if not initialized then
+						errorMessage = 'Cannot execute InsertGLEntry method for the GL Post Object is not yet initialized.'
+						suggestionRemarks = 'The Initialize method must be performed before calling any other methods.'
+						return False
+					end if
+					
+					ll_insertRow = dw_GLEntries.insertRow(0)
+					if isNull(as_sourceTranTypeCode) or as_sourceTranTypeCode = '' then
+						dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= tranTypeCode
+					else
+						dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= as_sourceTranTypeCode
+					end if
+					if isNull(as_sourceTranNo) or as_sourceTranNo = '' then
+						dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= tranNo
+					else
+						dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= as_sourceTranNo
+					end if
+					dw_GLEntries.object.glAccountCode[ll_insertRow] 		= as_glAccountCode
+					dw_GLEntries.object.debit[ll_insertRow] 				= ad_amount
+					dw_GLEntries.object.credit[ll_insertRow] 				= 0
+					dw_GLEntries.object.recordNo[ll_insertRow] 				= ll_insertRow
+					dw_GLEntries.object.remarks[ll_insertRow] 				= as_remarks
+					
+					return True
+
+					--END VALIDASI iuo_glPoster.insertGLEntryDebit
 			end if
 			
 			
@@ -2837,16 +2958,16 @@ for ll_adv_row = 1 to ll_adv_records
 	
 	ll_records = dw_adv.rowcount()
 	for ll_row = 1 to ll_records
-		ls_octranno					= trim(dw_adv.getitemstring(ll_row, "tranno"						))
-		ls_octypecode 				= trim(dw_adv.getitemstring(ll_row, "octypecode"				))
-		ls_reftranno				= trim(dw_adv.getitemstring(ll_row, "reftranno"					))
-		ls_reftrantypecode		= trim(dw_adv.getitemstring(ll_row, "trantypecode"				))
-		ls_sourceOcTypeCode		= trim(dw_adv.getitemstring(ll_row, "sourceoctypecode"		))
-		ls_sourceOcRefTranNo		= trim(dw_adv.getitemstring(ll_row, "sourceocreftranno"		))
-		ls_sourceOcTranTypeCode	= trim(dw_adv.getitemstring(ll_row, "sourceoctrantypecode"	))
-		ls_refApplTranTypeCode  = trim(dw_adv.getitemstring(ll_row, "refApplTranTypeCode"	))
-		ls_refApplTranNo			= trim(dw_adv.getitemstring(ll_row, "refApplTranNo"			))
-		ls_newrecord 				= dw_adv.getitemstring(ll_row, "newrecord"						)
+		ls_octranno					= trim(dw_adv.getitemstring(ll_row, "tranno"))
+		ls_octypecode 				= trim(dw_adv.getitemstring(ll_row, "octypecode"))
+		ls_reftranno				= trim(dw_adv.getitemstring(ll_row, "reftranno"))
+		ls_reftrantypecode		= trim(dw_adv.getitemstring(ll_row, "trantypecode"))
+		ls_sourceOcTypeCode		= trim(dw_adv.getitemstring(ll_row, "sourceoctypecode"))
+		ls_sourceOcRefTranNo		= trim(dw_adv.getitemstring(ll_row, "sourceocreftranno"))
+		ls_sourceOcTranTypeCode	= trim(dw_adv.getitemstring(ll_row, "sourceoctrantypecode"))
+		ls_refApplTranTypeCode  = trim(dw_adv.getitemstring(ll_row, "refApplTranTypeCode"))
+		ls_refApplTranNo			= trim(dw_adv.getitemstring(ll_row, "refApplTranNo"))
+		ls_newrecord 				= dw_adv.getitemstring(ll_row, "newrecord")
 		
 		--=======================================================
 		--
@@ -2949,7 +3070,37 @@ for ll_adv_row = 1 to ll_adv_records
 			if ls_newrecord = 'Y' then
 				iuo_glPoster.insertGLEntryCredit('SAV-POC-CR', '', ls_openCreditAccount, ld_balance, 'increase subscriber advances')
 			end if	
-			--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+			
+			--VALIDASI INSERTGLENTRY CREDIT
+			long ll_insertRow
+
+			if not initialized then
+				errorMessage = 'Cannot execute InsertGLEntry method for the GL Post Object is not yet initialized.'
+				suggestionRemarks = 'The Initialize method must be performed before calling any other methods.'
+				return False
+			end if
+			
+			ll_insertRow = dw_GLEntries.insertRow(0)
+			if isNull(as_sourceTranTypeCode) or as_sourceTranTypeCode = '' then
+				dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= tranTypeCode
+			else
+				dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= as_sourceTranTypeCode
+			end if
+			if isNull(as_sourceTranNo) or as_sourceTranNo = '' then
+				dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= tranNo
+			else
+				dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= as_sourceTranNo
+			end if
+			dw_GLEntries.object.glAccountCode[ll_insertRow] 		= as_glAccountCode
+			dw_GLEntries.object.debit[ll_insertRow] 					= 0
+			dw_GLEntries.object.credit[ll_insertRow] 					= ad_amount
+			dw_GLEntries.object.recordNo[ll_insertRow] 				= ll_insertRow
+			dw_GLEntries.object.remarks[ll_insertRow] 				= as_remarks
+			
+			return TRUE
+			
+			--END INSERTGLENTRY CREDIT
+
 	
 		else
 			
@@ -3014,12 +3165,12 @@ for ll_adv_row = 1 to ll_adv_records
 		ls_artypecode 		= trim(dw_ar.getitemstring(ll_row, "artypecode"))	
 		ls_remarks 			= trim(dw_ar.getitemstring(ll_row, "remarks"))
 		ls_newrecord		= dw_ar.getitemstring(ll_row, "newrecord")
-		li_priority				= dw_ar.getitemnumber(ll_row, "artypecodepriority")
+		li_priority			= dw_ar.getitemnumber(ll_row, "artypecodepriority")
 		ld_balance			= dw_ar.getitemdecimal(ll_row, "balance")
 		ld_paidamt			= dw_ar.getitemdecimal(ll_row, "paidamt")
 		ld_newbalance		= dw_ar.getitemdecimal(ll_row, "newbalance")	
 		ls_sourceTable		= dw_ar.getitemstring(ll_row, "sourcetable")	
-		ldtm_periodFrom	= dw_ar.getItemDateTime(ll_row, "periodfrom")
+		ldtm_periodFrom		= dw_ar.getItemDateTime(ll_row, "periodfrom")
 		ldtm_periodTo		= dw_ar.getItemDateTime(ll_row, "periodto")
 		ldtm_trandate		= dw_ar.getItemDateTime(ll_row, "trandate")
 		
@@ -3043,27 +3194,628 @@ for ll_adv_row = 1 to ll_adv_records
 				if isNull(adt_trandate) or string(adt_trandate, 'mm-dd-yyyy') = '01-01-1900' then
 					if not insertIntoArTranHdr(ls_tranno, ls_trantypecode, ls_artypecode, li_priority, ld_balance, ld_paidamt, ld_newbalance, ls_remarks) then
 						return FALSE
+					end IF
+					
+					--VALIDASI INSERTINTOARTRANSHDR
+					datetime ldt_serverDate
+					ldt_serverDate = guo_func.getServerDatetime()
+					
+					return insertIntoARTranHdr(as_tranNo, as_tranTypeCode, as_arTypeCode, ai_priority, ad_balance, &
+							 ad_paidAmt, ad_newBalance, as_remarks, ldt_serverDate)
+							 
+		 			--CONTINUE TO insertIntoARTranHdr
+					datetime ldt_serverDate
+
+					if isNull(adt_trandate) then
+						lastSQLCode = '-2'
+						lastSQLErrText = 'Invalid transaction date' 
+						return FALSE
 					end if
+					
+					ldt_serverDate = adt_trandate
+					
+					string ls_packagecode
+						select packagecode into: ls_packagecode
+						from aracctsubscriber
+						where acctno = :acctNo
+						and divisionCode = :gs_divisionCode
+						and companyCode = :gs_companyCode
+						using SQLCA;
+					
+					insert into arTranHdr (
+									tranno,   
+									tranTypeCode,   
+									arTypeCode,
+									tranDate,   
+									acctNo,
+									arTypeCodePriority,   
+									amount,
+									paidAmt,
+									balance,
+									remarks,
+									divisionCode,
+									companyCode,
+									packagecode,
+									currencycode,
+									conversionrate)  
+						  values (
+									:as_tranno,   
+									:as_trantypecode,   
+									:as_artypecode, 
+									:ldt_serverDate,   
+									:acctNo,   
+									:ai_priority,   
+									:ad_balance,   
+									:ad_paidamt,   
+									:ad_newbalance,  
+									:as_remarks,
+									:gs_divisionCode,
+									:gs_companyCode,
+									:ls_packagecode,
+									:subsCurrencyCode,
+									:conversionrate)
+							using SQLCA;
+					if SQLCA.sqlcode < 0 then
+						lastSQLCode = string(SQLCA.sqlcode)
+						lastSQLErrText = SQLCA.sqlerrtext
+						return FALSE
+					end if
+					
+					--=======================================================
+					--insert GL Entry: Debit A/R
+					--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+					string ls_arAccount
+					if not f_getArTypeArAccount(as_artypecode, ls_arAccount, lastSQLErrText) then
+						return FALSE
+					end IF
+					
+					iuo_glPoster.insertGLEntryDebit('SAV-IAR-DB', '03-chrg', ls_arAccount, ad_balance)
+					
+					--VALIDASI iuo_glPoster.insertGLEntryDebit
+					long ll_insertRow
+
+					if not initialized then
+						errorMessage = 'Cannot execute InsertGLEntry method for the GL Post Object is not yet initialized.'
+						suggestionRemarks = 'The Initialize method must be performed before calling any other methods.'
+						return False
+					end if
+					
+					ll_insertRow = dw_GLEntries.insertRow(0)
+					if isNull(as_sourceTranTypeCode) or as_sourceTranTypeCode = '' then
+						dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= tranTypeCode
+					else
+						dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= as_sourceTranTypeCode
+					end if
+					if isNull(as_sourceTranNo) or as_sourceTranNo = '' then
+						dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= tranNo
+					else
+						dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= as_sourceTranNo
+					end if
+					dw_GLEntries.object.glAccountCode[ll_insertRow] 		= as_glAccountCode
+					dw_GLEntries.object.debit[ll_insertRow] 				= ad_amount
+					dw_GLEntries.object.credit[ll_insertRow] 				= 0
+					dw_GLEntries.object.recordNo[ll_insertRow] 				= ll_insertRow
+					dw_GLEntries.object.remarks[ll_insertRow] 				= as_remarks
+					
+					return True
+
+					--END VALIDASI iuo_glPoster.insertGLEntryDebit
+					
+					--=======================================================
+					--insert GL Entry: Credit Unearned
+					--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+					
+					string ls_unearnedAccount
+					if not f_getArTypeUnearnedAccount(as_artypecode, ls_unearnedAccount, lastSQLErrText) then
+						return FALSE
+					end IF
+					
+					iuo_glPoster.insertGLEntryCredit('SAV-IAR-DB', '04-chrg', ls_unearnedAccount, ad_balance)
+					
+					--VALIDASI INSERTGLENTRY CREDIT
+					long ll_insertRow
+		
+					if not initialized then
+						errorMessage = 'Cannot execute InsertGLEntry method for the GL Post Object is not yet initialized.'
+						suggestionRemarks = 'The Initialize method must be performed before calling any other methods.'
+						return False
+					end if
+					
+					ll_insertRow = dw_GLEntries.insertRow(0)
+					if isNull(as_sourceTranTypeCode) or as_sourceTranTypeCode = '' then
+						dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= tranTypeCode
+					else
+						dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= as_sourceTranTypeCode
+					end if
+					if isNull(as_sourceTranNo) or as_sourceTranNo = '' then
+						dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= tranNo
+					else
+						dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= as_sourceTranNo
+					end if
+					dw_GLEntries.object.glAccountCode[ll_insertRow] 		= as_glAccountCode
+					dw_GLEntries.object.debit[ll_insertRow] 					= 0
+					dw_GLEntries.object.credit[ll_insertRow] 					= ad_amount
+					dw_GLEntries.object.recordNo[ll_insertRow] 				= ll_insertRow
+					dw_GLEntries.object.remarks[ll_insertRow] 				= as_remarks
+					
+					return TRUE
+					
+					--END INSERTGLENTRY CREDIT
+					
+					
+					if ad_paidAmt > 0 then
+						--=======================================================
+						--insert GL Entry: Credit AR | Paid portion
+						--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+						iuo_glPoster.insertGLEntryCredit('SAV-IAR-DB', '06-paid', ls_arAccount, ad_paidAmt)
+						
+						--VALIDASI INSERTGLENTRY CREDIT
+						long ll_insertRow
+			
+						if not initialized then
+							errorMessage = 'Cannot execute InsertGLEntry method for the GL Post Object is not yet initialized.'
+							suggestionRemarks = 'The Initialize method must be performed before calling any other methods.'
+							return False
+						end if
+						
+						ll_insertRow = dw_GLEntries.insertRow(0)
+						if isNull(as_sourceTranTypeCode) or as_sourceTranTypeCode = '' then
+							dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= tranTypeCode
+						else
+							dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= as_sourceTranTypeCode
+						end if
+						if isNull(as_sourceTranNo) or as_sourceTranNo = '' then
+							dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= tranNo
+						else
+							dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= as_sourceTranNo
+						end if
+						dw_GLEntries.object.glAccountCode[ll_insertRow] 		= as_glAccountCode
+						dw_GLEntries.object.debit[ll_insertRow] 					= 0
+						dw_GLEntries.object.credit[ll_insertRow] 					= ad_amount
+						dw_GLEntries.object.recordNo[ll_insertRow] 				= ll_insertRow
+						dw_GLEntries.object.remarks[ll_insertRow] 				= as_remarks
+						
+						return TRUE
+						
+						--END INSERTGLENTRY CREDIT
+						
+						--=======================================================
+						--insert GL Entry: Debit Unearned | Paid portion
+						--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+						iuo_glPoster.insertGLEntryDebit('SAV-IAR-DB', '07-paid', ls_unearnedAccount, ad_paidAmt)	
+						
+						--VALIDASI iuo_glPoster.insertGLEntryDebit
+						long ll_insertRow
+	
+						if not initialized then
+							errorMessage = 'Cannot execute InsertGLEntry method for the GL Post Object is not yet initialized.'
+							suggestionRemarks = 'The Initialize method must be performed before calling any other methods.'
+							return False
+						end if
+						
+						ll_insertRow = dw_GLEntries.insertRow(0)
+						if isNull(as_sourceTranTypeCode) or as_sourceTranTypeCode = '' then
+							dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= tranTypeCode
+						else
+							dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= as_sourceTranTypeCode
+						end if
+						if isNull(as_sourceTranNo) or as_sourceTranNo = '' then
+							dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= tranNo
+						else
+							dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= as_sourceTranNo
+						end if
+						dw_GLEntries.object.glAccountCode[ll_insertRow] 		= as_glAccountCode
+						dw_GLEntries.object.debit[ll_insertRow] 				= ad_amount
+						dw_GLEntries.object.credit[ll_insertRow] 				= 0
+						dw_GLEntries.object.recordNo[ll_insertRow] 				= ll_insertRow
+						dw_GLEntries.object.remarks[ll_insertRow] 				= as_remarks
+						
+						return True
+	
+						--END VALIDASI iuo_glPoster.insertGLEntryDebit
+						
+					end if
+					
+					return TRUE
+					
+					--END TO insertIntoARTranHdr
+		 
+							 
 				else
 					if not insertIntoArTranHdr(ls_tranno, ls_trantypecode, ls_artypecode, li_priority, ld_balance, ld_paidamt, ld_newbalance, ls_remarks, adt_tranDate) then
 						return FALSE
+					end IF
+					
+					--VALIDASI INSERTINTOARTRANHDR
+					datetime ldt_serverDate
+
+					if isNull(adt_trandate) then
+						lastSQLCode = '-2'
+						lastSQLErrText = 'Invalid transaction date' 
+						return FALSE
 					end if
+					
+					ldt_serverDate = adt_trandate
+					
+					string ls_packagecode
+						select packagecode into: ls_packagecode
+						from aracctsubscriber
+						where acctno = :acctNo
+						and divisionCode = :gs_divisionCode
+						and companyCode = :gs_companyCode
+						using SQLCA;
+					
+					insert into arTranHdr (
+									tranno,   
+									tranTypeCode,   
+									arTypeCode,
+									tranDate,   
+									acctNo,
+									arTypeCodePriority,   
+									amount,
+									paidAmt,
+									balance,
+									remarks,
+									divisionCode,
+									companyCode,
+									packagecode,
+									currencycode,
+									conversionrate)  
+						  values (
+									:as_tranno,   
+									:as_trantypecode,   
+									:as_artypecode, 
+									:ldt_serverDate,   
+									:acctNo,   
+									:ai_priority,   
+									:ad_balance,   
+									:ad_paidamt,   
+									:ad_newbalance,  
+									:as_remarks,
+									:gs_divisionCode,
+									:gs_companyCode,
+									:ls_packagecode,
+									:subsCurrencyCode,
+									:conversionrate)
+							using SQLCA;
+					if SQLCA.sqlcode < 0 then
+						lastSQLCode = string(SQLCA.sqlcode)
+						lastSQLErrText = SQLCA.sqlerrtext
+						return FALSE
+					end if
+					
+					--=======================================================
+					--insert GL Entry: Debit A/R
+					--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+					string ls_arAccount
+					if not f_getArTypeArAccount(as_artypecode, ls_arAccount, lastSQLErrText) then
+						return FALSE
+					end IF
+					
+					iuo_glPoster.insertGLEntryDebit('SAV-IAR-DB', '03-chrg', ls_arAccount, ad_balance)
+					
+					--VALIDASI iuo_glPoster.insertGLEntryDebit
+					long ll_insertRow
+
+					if not initialized then
+						errorMessage = 'Cannot execute InsertGLEntry method for the GL Post Object is not yet initialized.'
+						suggestionRemarks = 'The Initialize method must be performed before calling any other methods.'
+						return False
+					end if
+					
+					ll_insertRow = dw_GLEntries.insertRow(0)
+					if isNull(as_sourceTranTypeCode) or as_sourceTranTypeCode = '' then
+						dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= tranTypeCode
+					else
+						dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= as_sourceTranTypeCode
+					end if
+					if isNull(as_sourceTranNo) or as_sourceTranNo = '' then
+						dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= tranNo
+					else
+						dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= as_sourceTranNo
+					end if
+					dw_GLEntries.object.glAccountCode[ll_insertRow] 		= as_glAccountCode
+					dw_GLEntries.object.debit[ll_insertRow] 				= ad_amount
+					dw_GLEntries.object.credit[ll_insertRow] 				= 0
+					dw_GLEntries.object.recordNo[ll_insertRow] 				= ll_insertRow
+					dw_GLEntries.object.remarks[ll_insertRow] 				= as_remarks
+					
+					return True
+
+					--END VALIDASI iuo_glPoster.insertGLEntryDebit
+					
+					--=======================================================
+					--insert GL Entry: Credit Unearned
+					--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+					
+					string ls_unearnedAccount
+					if not f_getArTypeUnearnedAccount(as_artypecode, ls_unearnedAccount, lastSQLErrText) then
+						return FALSE
+					end IF
+					
+					iuo_glPoster.insertGLEntryCredit('SAV-IAR-DB', '04-chrg', ls_unearnedAccount, ad_balance)
+					
+					--VALIDASI INSERTGLENTRY CREDIT
+				long ll_insertRow
+	
+				if not initialized then
+					errorMessage = 'Cannot execute InsertGLEntry method for the GL Post Object is not yet initialized.'
+					suggestionRemarks = 'The Initialize method must be performed before calling any other methods.'
+					return False
+				end if
+				
+				ll_insertRow = dw_GLEntries.insertRow(0)
+				if isNull(as_sourceTranTypeCode) or as_sourceTranTypeCode = '' then
+					dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= tranTypeCode
+				else
+					dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= as_sourceTranTypeCode
+				end if
+				if isNull(as_sourceTranNo) or as_sourceTranNo = '' then
+					dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= tranNo
+				else
+					dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= as_sourceTranNo
+				end if
+				dw_GLEntries.object.glAccountCode[ll_insertRow] 		= as_glAccountCode
+				dw_GLEntries.object.debit[ll_insertRow] 					= 0
+				dw_GLEntries.object.credit[ll_insertRow] 					= ad_amount
+				dw_GLEntries.object.recordNo[ll_insertRow] 				= ll_insertRow
+				dw_GLEntries.object.remarks[ll_insertRow] 				= as_remarks
+				
+				return TRUE
+				
+				--END INSERTGLENTRY CREDIT
+					
+					
+					if ad_paidAmt > 0 then
+						--=======================================================
+						--insert GL Entry: Credit AR | Paid portion
+						--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+						iuo_glPoster.insertGLEntryCredit('SAV-IAR-DB', '06-paid', ls_arAccount, ad_paidAmt)
+						--VALIDASI INSERTGLENTRY CREDIT
+						long ll_insertRow
+			
+						if not initialized then
+							errorMessage = 'Cannot execute InsertGLEntry method for the GL Post Object is not yet initialized.'
+							suggestionRemarks = 'The Initialize method must be performed before calling any other methods.'
+							return False
+						end if
+						
+						ll_insertRow = dw_GLEntries.insertRow(0)
+						if isNull(as_sourceTranTypeCode) or as_sourceTranTypeCode = '' then
+							dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= tranTypeCode
+						else
+							dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= as_sourceTranTypeCode
+						end if
+						if isNull(as_sourceTranNo) or as_sourceTranNo = '' then
+							dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= tranNo
+						else
+							dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= as_sourceTranNo
+						end if
+						dw_GLEntries.object.glAccountCode[ll_insertRow] 		= as_glAccountCode
+						dw_GLEntries.object.debit[ll_insertRow] 					= 0
+						dw_GLEntries.object.credit[ll_insertRow] 					= ad_amount
+						dw_GLEntries.object.recordNo[ll_insertRow] 				= ll_insertRow
+						dw_GLEntries.object.remarks[ll_insertRow] 				= as_remarks
+						
+						return TRUE
+						
+						--END INSERTGLENTRY CREDIT
+						
+						--=======================================================
+						--insert GL Entry: Debit Unearned | Paid portion
+						--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+						iuo_glPoster.insertGLEntryDebit('SAV-IAR-DB', '07-paid', ls_unearnedAccount, ad_paidAmt)						
+						
+					end if
+					
+					return TRUE
+					
+					--END TO insertIntoARTranHdr
+					
 				end if
 				
 			else
 				
 				if not insertIntoArTranHdr(ls_tranno, ls_trantypecode, ls_artypecode, li_priority, ld_balance, ld_paidamt, ld_newbalance, ls_remarks, ldtm_trandate, ldtm_periodFrom, ldtm_periodTo) then
 					return FALSE
+				end IF
+				
+				--VALIDASI insertIntoArTranHdr
+				datetime ldt_serverDate
+
+				if isNull(adt_trandate) then
+					lastSQLCode = '-2'
+					lastSQLErrText = 'Invalid transaction date' 
+					return FALSE
 				end if
+				
+				ldt_serverDate = adt_trandate
+				
+				string ls_packagecode
+				select packagecode into: ls_packagecode
+				from aracctsubscriber
+				where acctno = :acctNo
+				and divisionCode = :gs_divisionCode
+				and companyCode = :gs_companyCode
+				using SQLCA;
+				
+				insert into arTranHdr (
+							tranno,   
+							tranTypeCode,   
+							arTypeCode,
+							tranDate,   
+							acctNo,
+							arTypeCodePriority,   
+							amount,
+							paidAmt,
+							balance,
+							remarks,
+							periodFrom,
+							periodTo,
+							divisionCode,
+							companyCode,
+							packagecode,
+							currencycode,
+							conversionrate)  
+				  values (
+							:as_tranno,   
+							:as_trantypecode,   
+							:as_artypecode, 
+							:ldt_serverDate,   
+							:acctNo,   
+							:ai_priority,   
+							:ad_balance,   
+							:ad_paidamt,   
+							:ad_newbalance,  
+							:as_remarks,
+							:adt_periodFrom,
+							:adt_periodTo,
+							:gs_divisionCode,
+							:gs_companyCode,
+							:ls_packagecode,
+							:subsCurrencyCode,
+							:conversionrate)
+					using SQLCA;
+				if SQLCA.sqlcode < 0 then
+					lastSQLCode = string(SQLCA.sqlcode)
+					lastSQLErrText = SQLCA.sqlerrtext
+					return FALSE
+				end IF
+				
+				--=======================================================
+				--insert GL Entry: Debit A/R
+				--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+				string ls_arAccount
+				if not f_getArTypeArAccount(as_artypecode, ls_arAccount, lastSQLErrText) then
+					return FALSE
+				end if
+				iuo_glPoster.insertGLEntryDebit('SAV-IAR-DB', '03-chrg', ls_arAccount, ad_balance)
+				
+				--=======================================================
+				--insert GL Entry: Credit Unearned
+				--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+				string ls_unearnedAccount
+				if not f_getArTypeUnearnedAccount(as_artypecode, ls_unearnedAccount, lastSQLErrText) then
+					return FALSE
+				end IF
+				
+				iuo_glPoster.insertGLEntryCredit('SAV-IAR-DB', '04-chrg', ls_unearnedAccount, ad_balance)
+				
+				--VALIDASI INSERTGLENTRY CREDIT
+				long ll_insertRow
+	
+				if not initialized then
+					errorMessage = 'Cannot execute InsertGLEntry method for the GL Post Object is not yet initialized.'
+					suggestionRemarks = 'The Initialize method must be performed before calling any other methods.'
+					return False
+				end if
+				
+				ll_insertRow = dw_GLEntries.insertRow(0)
+				if isNull(as_sourceTranTypeCode) or as_sourceTranTypeCode = '' then
+					dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= tranTypeCode
+				else
+					dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= as_sourceTranTypeCode
+				end if
+				if isNull(as_sourceTranNo) or as_sourceTranNo = '' then
+					dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= tranNo
+				else
+					dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= as_sourceTranNo
+				end if
+				dw_GLEntries.object.glAccountCode[ll_insertRow] 		= as_glAccountCode
+				dw_GLEntries.object.debit[ll_insertRow] 					= 0
+				dw_GLEntries.object.credit[ll_insertRow] 					= ad_amount
+				dw_GLEntries.object.recordNo[ll_insertRow] 				= ll_insertRow
+				dw_GLEntries.object.remarks[ll_insertRow] 				= as_remarks
+				
+				return TRUE
+			
+				--END INSERTGLENTRY CREDIT
+				
+				if ad_paidAmt > 0 then
+					--=======================================================
+					--insert GL Entry: Credit AR | Paid portion
+					--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+					iuo_glPoster.insertGLEntryCredit('SAV-IAR-DB', '06-paid', ls_arAccount, ad_paidAmt)
+					
+					--VALIDASI INSERTGLENTRY CREDIT
+					long ll_insertRow
+		
+					if not initialized then
+						errorMessage = 'Cannot execute InsertGLEntry method for the GL Post Object is not yet initialized.'
+						suggestionRemarks = 'The Initialize method must be performed before calling any other methods.'
+						return False
+					end if
+					
+					ll_insertRow = dw_GLEntries.insertRow(0)
+					if isNull(as_sourceTranTypeCode) or as_sourceTranTypeCode = '' then
+						dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= tranTypeCode
+					else
+						dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= as_sourceTranTypeCode
+					end if
+					if isNull(as_sourceTranNo) or as_sourceTranNo = '' then
+						dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= tranNo
+					else
+						dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= as_sourceTranNo
+					end if
+					dw_GLEntries.object.glAccountCode[ll_insertRow] 		= as_glAccountCode
+					dw_GLEntries.object.debit[ll_insertRow] 					= 0
+					dw_GLEntries.object.credit[ll_insertRow] 					= ad_amount
+					dw_GLEntries.object.recordNo[ll_insertRow] 				= ll_insertRow
+					dw_GLEntries.object.remarks[ll_insertRow] 				= as_remarks
+					
+					return TRUE
+					
+					--END INSERTGLENTRY CREDIT
+					
+					--=======================================================
+					--insert GL Entry: Debit Unearned | Paid portion
+					--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+					iuo_glPoster.insertGLEntryDebit('SAV-IAR-DB', '07-paid', ls_unearnedAccount, ad_paidAmt)
+					
+					--VALIDASI iuo_glPoster.insertGLEntryDebit
+					long ll_insertRow
+
+					if not initialized then
+						errorMessage = 'Cannot execute InsertGLEntry method for the GL Post Object is not yet initialized.'
+						suggestionRemarks = 'The Initialize method must be performed before calling any other methods.'
+						return False
+					end if
+					
+					ll_insertRow = dw_GLEntries.insertRow(0)
+					if isNull(as_sourceTranTypeCode) or as_sourceTranTypeCode = '' then
+						dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= tranTypeCode
+					else
+						dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= as_sourceTranTypeCode
+					end if
+					if isNull(as_sourceTranNo) or as_sourceTranNo = '' then
+						dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= tranNo
+					else
+						dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= as_sourceTranNo
+					end if
+					dw_GLEntries.object.glAccountCode[ll_insertRow] 		= as_glAccountCode
+					dw_GLEntries.object.debit[ll_insertRow] 				= ad_amount
+					dw_GLEntries.object.credit[ll_insertRow] 				= 0
+					dw_GLEntries.object.recordNo[ll_insertRow] 				= ll_insertRow
+					dw_GLEntries.object.remarks[ll_insertRow] 				= as_remarks
+					
+					return True
+
+					--END VALIDASI iuo_glPoster.insertGLEntryDebit
+					
+				end if
+				
+				return TRUE
+					
+				--END VALIDASI insertIntoArTranHdr
 	
 			end if	
 		else	
 			f_displayStatus('Posting AR Updates... (update subsDepositReceivable)')
 			if ls_sourceTable = 'RIP' then
-				// ==================================================
-				// update RIP's as processed, so they won't appear 
-				// in collection entry again.
-				// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+				--==================================================
+				--update RIP's as processed, so they won't appear 
+				--in collection entry again.
+				-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 				f_displayStatus('Posting AR Updates... (update subsInitialPayment)')
 				if ld_paidamt > 0 then
 					update subsInitialPayment
@@ -3132,11 +3884,42 @@ for ll_adv_row = 1 to ll_adv_records
 					end IF
 					
 					iuo_glPoster.insertGLEntryCredit('SAV-PARU-CR', '06-paid', ls_arAccount, ld_paidamt, 'decrease AR')
+					
+					--VALIDASI INSERTGLENTRY CREDIT
+					long ll_insertRow
+		
+					if not initialized then
+						errorMessage = 'Cannot execute InsertGLEntry method for the GL Post Object is not yet initialized.'
+						suggestionRemarks = 'The Initialize method must be performed before calling any other methods.'
+						return False
+					end if
+					
+					ll_insertRow = dw_GLEntries.insertRow(0)
+					if isNull(as_sourceTranTypeCode) or as_sourceTranTypeCode = '' then
+						dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= tranTypeCode
+					else
+						dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= as_sourceTranTypeCode
+					end if
+					if isNull(as_sourceTranNo) or as_sourceTranNo = '' then
+						dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= tranNo
+					else
+						dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= as_sourceTranNo
+					end if
+					dw_GLEntries.object.glAccountCode[ll_insertRow] 		= as_glAccountCode
+					dw_GLEntries.object.debit[ll_insertRow] 					= 0
+					dw_GLEntries.object.credit[ll_insertRow] 					= ad_amount
+					dw_GLEntries.object.recordNo[ll_insertRow] 				= ll_insertRow
+					dw_GLEntries.object.remarks[ll_insertRow] 				= as_remarks
+					
+					return TRUE
+					
+					--END INSERTGLENTRY CREDIT
 					--=======================================================
 					--end
 					--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 					
 					string ls_unearnedAccount
+					
 					--=======================================================
 					--insert GL Entry: Debit Unearned
 					--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3144,6 +3927,36 @@ for ll_adv_row = 1 to ll_adv_records
 					if not f_getArTypeUnearnedAccount(ls_artypecode, ls_unearnedAccount, lastSQLErrText) then
 						return FALSE
 					end IF
+					
+					--VALIDASI F_GETARTYPEUNERNERDACCOUNT
+					if isnull(as_arTypeCode) then
+						as_errorMsg = 'Null AR Type Code is invalid.'
+						return FALSE  
+					end if  
+					   
+					select unEarnedRevAccount
+					  into :as_glAccountCode
+					  from arTypeMaster
+					 where arTypeCode = :as_arTypeCode
+					 and divisionCode = :gs_divisionCode
+					and companyCode = :gs_companyCode
+					using SQLCA;
+					if SQLCA.sqlcode = 100 then	// record not found
+						as_errorMsg  = 'AR Type Code : [' + as_arTypeCode + '] doest not exist.'
+						return FALSE
+					elseif SQLCA.sqlcode < 0 then
+						as_errorMsg  = SQLCA.sqlerrtext
+						return FALSE
+					end if
+					
+					if isnull(as_glAccountCode) or trim(as_glAccountCode) = '' then
+						as_errorMsg = 'The AR Account obtained was empty or null. Check the AR Type Code : [' + as_arTypeCode + '] in AR Type Maintenance'
+						return FALSE
+					end if
+					
+					Return TRUE
+					
+					--END VALIDASI F_GETARTYPEUNERNERDACCOUNT
 					
 					iuo_glPoster.insertGLEntryDebit('SAV-PARU-CR', '07-paid', ls_unearnedAccount, ld_paidamt, 'decrease UNEARNED')
 					
@@ -3511,20 +4324,51 @@ for ll_adv_row = 1 to ll_adv_records
 												  ls_arTypeCode <> 'ADDEP' and &     
 												  ls_arTypeCode <> 'SCDEP' ) then	 
 						string ls_revenueAccount
-						// =======================================================
-						// insert GL Entry: Credit Revenue
-						// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+						--=======================================================
+						--insert GL Entry: Credit Revenue
+						--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 						if not f_getArTypeRevAccount(ls_artypecode, ls_revenueAccount, lastSQLErrText) then
 							return FALSE
 						end if
 						
-						//--zar 08/09/2010 - If OCTYPE = INCENTIVE - no revenue must be realized
+						--zar 08/09/2010 - If OCTYPE = INCENTIVE - no revenue must be realized
 						if trim(ls_octype) <> 'INCENTIV' then
 							iuo_glPoster.insertGLEntryCredit('SAV-PAOC-CR', '08-paid', ls_revenueAccount, ld_payment * conversionRate, 'increase revenue')
 						end if	
-						// =======================================================
-						// end
-						// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+						
+						--VALIDASI INSERTGLENTRY CREDIT
+						long ll_insertRow
+			
+						if not initialized then
+							errorMessage = 'Cannot execute InsertGLEntry method for the GL Post Object is not yet initialized.'
+							suggestionRemarks = 'The Initialize method must be performed before calling any other methods.'
+							return False
+						end if
+						
+						ll_insertRow = dw_GLEntries.insertRow(0)
+						if isNull(as_sourceTranTypeCode) or as_sourceTranTypeCode = '' then
+							dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= tranTypeCode
+						else
+							dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= as_sourceTranTypeCode
+						end if
+						if isNull(as_sourceTranNo) or as_sourceTranNo = '' then
+							dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= tranNo
+						else
+							dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= as_sourceTranNo
+						end if
+						dw_GLEntries.object.glAccountCode[ll_insertRow] 		= as_glAccountCode
+						dw_GLEntries.object.debit[ll_insertRow] 					= 0
+						dw_GLEntries.object.credit[ll_insertRow] 					= ad_amount
+						dw_GLEntries.object.recordNo[ll_insertRow] 				= ll_insertRow
+						dw_GLEntries.object.remarks[ll_insertRow] 				= as_remarks
+						
+						return TRUE
+						
+						--END INSERTGLENTRY CREDIT
+						
+						--=======================================================
+						--end
+						--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 					end if
 				else
 					exit
