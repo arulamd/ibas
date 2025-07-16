@@ -682,9 +682,83 @@ SELECT  applofexttranhdr.tranno ,
 		if not iuo_subscriber.getARBalance(ld_ARBalance,1) then
 			guo_func.msgbox("Warning!", iuo_subscriber.lastSQLCode + "~r~n" + &
 				iuo_subscriber.lastSQLErrText)
+		end IF
+		
+		--VALIDASI iuo_subscriber.getARBalance(ld_ARBalance,1)
+		
+		lastMethodAccessed = 'getARBalance'
+		datetime ldt_cutOffDate, ldt_lastBillingDate
+		
+		integer li_currentMonthNo, li_monthNoSearch, li_currentYearNoSearch, li_yearNoSearch
+		
+		if subsTypeCode <> 'CP' then
+			select billingDate into :ldt_lastBillingDate
+			from systemParameter 
+			where divisionCode = :gs_divisionCode
+			and companyCode = :gs_companyCode
+			using SQLCA;
+			if isnull(ldt_lastBillingDate) then
+				li_monthNoSearch = month( date( guo_func.get_server_date() ) )
+				li_yearNoSearch = year( date( guo_func.get_server_date() ) )
+			else
+				li_monthNoSearch = month( date( ldt_lastBillingDate ) )
+				li_yearNoSearch = year( date( ldt_lastBillingDate ) )
+			end if
+			
+			li_currentMonthNo = ( li_monthNoSearch - ai_noofbillingmonths )// + 1
+			if li_currentMonthNo <= 0 then
+				li_currentMonthNo = 12 + li_currentMonthNo	
+				li_yearNoSearch = li_yearNoSearch - 1		
+			end if
+		else
+			select billingDateCP into :ldt_lastBillingDate
+			from systemParameter 
+			where divisionCode = :gs_divisionCode
+			and companyCode = :gs_companyCode
+			using SQLCA;
+			if isnull(ldt_lastBillingDate) then
+				li_monthNoSearch = month( date( guo_func.get_server_date() ) )
+				li_yearNoSearch = year( date( guo_func.get_server_date() ) )
+			else
+				li_monthNoSearch = month( date( ldt_lastBillingDate ) )
+				li_yearNoSearch = year( date( ldt_lastBillingDate ) )
+			end if
+			
+			li_currentMonthNo = ( li_monthNoSearch - ai_noofbillingmonths )// + 1
+			if li_currentMonthNo <= 0 then
+				li_currentMonthNo = 12 + li_currentMonthNo	
+				li_yearNoSearch = li_yearNoSearch - 1		
+			end if	
 		end if
 		
-		--pop up override policy window for authorization
+		
+		
+		ldt_cutOffDate = datetime( date(trim(string(li_currentMonthNo))+ &
+												'/11/'+ &
+			      						trim(string(li_yearNoSearch)) ), time('00:00:00') )
+		
+		
+		select sum(balance)
+		  into :ad_balance
+		  from arTranHdr
+		 where acctNo = :acctNo and tranDate < :ldt_cutOffDate
+		 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+		using SQLCA;
+		if SQLCA.sqlcode < 0 then
+			lastSQLCode = string(SQLCA.sqlcode)
+			lastSQLErrText = SQLCA.sqlerrtext
+			return FALSE
+		end if
+		
+		if isnull(ad_balance) then ad_balance = 0
+		
+		return TRUE
+		
+		----END VALIDASI iuo_subscriber.getARBalance(ld_ARBalance,1)
+		
+		--POP UP override policy window for authorization
+		
 		if ld_ARBalance > 0.00 then
 			if guo_func.msgbox("Policy Override!!!", &
 									"The current subscriber has a/r balances.  You can not continue with this request.  Do you want to override this policy?", &										
@@ -699,8 +773,175 @@ SELECT  applofexttranhdr.tranno ,
 				s_arrears_override_policy.arBalance 					= ld_ARBalance
 				s_arrears_override_policy.subscriberName			= iuo_subscriber.subscriberName
 				
+				----OPEN WINDOW POP UP TO SET AUTORIZATION
 				openwithparm(w_online_authorization,s_arrears_override_policy)	
-				 
+				
+				--IF CLICK BUTTON REQUEST FOR APPROPAL THEN ACTION THIS
+				--THE VISUAL FORM COLUMN
+				 SELECT space(10) tranNo,   
+			         space(50) requestedBy,   
+			         space(255) remarks,
+			         space(255) policyName,
+				space(255) userRemarks,
+			        0.00 arBalance,
+				space(1) lockInPeriod
+	
+				string 	ls_remarks, ls_tranNo, ls_mobileNo, ls_policy, ls_userRemarks
+				dateTime	ldt_date
+				long 		ll_tranNo
+				
+				if dwo.name = 'b_request' then
+					this.acceptText()
+					
+					if not guo_func.get_nextNumber_continous('OVERRIDE', ll_tranNo, 'WITH LOCK') then
+						guo_func.msgBox("ATTENTION","Unable to get an authorization no.")
+						return -1
+					end if
+					
+					if not guo_func.set_number_continous('OVERRIDE', ll_tranNo) then
+						guo_func.msgBox("ATTENTION","Unable to set the authorization no.")
+						return -1
+					end if
+					
+					ls_tranNo  		= string(ll_tranNo, '0000000000')
+					is_tranNo  		= ls_tranNo
+					ls_remarks 		= trim(this.getItemString(row,'remarks'))
+					ls_userRemarks = trim(this.getItemString(row,'userremarks'))
+					ls_policy  		= trim(this.getItemString(row,'policyName'))
+					
+					if isNull(ls_userRemarks) and ls_userRemarks = "" then
+						guo_func.msgBox("ATTENTION","User remarks is required.")
+						return -1
+					end if
+					
+					ldt_date 	= guo_func.get_server_dateTime()
+					//ls_policy 	= ls_policy +' User Remarks: '+ ls_userRemarks
+					
+					insert into overridePolicy
+						(
+							tranNo,
+							tranDate,
+							overridePolicyTypeCode,
+							refTranTypeCode,
+							refTranNo,
+							acctNo,
+							requestedBy,
+							expirationDate,
+							remarks,
+							useradd,
+							dateadd,
+							dateApproved,
+							approvedBy,
+							requestStatus,
+							divisionCode,
+							companyCode
+						)
+					values
+						(
+							:is_tranNo,
+							:ldt_date,
+							:istr_override_policy.overridepolicytypecode,
+							:istr_override_policy.refTranTypeCode,
+							:istr_override_policy.reftranno,
+							:istr_override_policy.acctNo,
+							:gs_ufullName,
+							null,
+							:ls_userRemarks,
+							:gs_userName,
+							:ldt_date,
+							:ldt_date,
+							'',
+							'OG',
+							:gs_divisionCode,
+							:gs_companyCode
+						)
+					using SQLCA;
+					if SQLCA.SQLCode <> 0 then
+						guo_func.msgBox('SM-0000001','Insert in overridePolicy '+'SQLCode    : '+string(SQLCA.SQLCode) + 'SQLErrText : ' + SQLCA.SQLErrText)
+						return -1	
+					end if	
+					commit using SQLCA;
+					/* remarked by vincent
+					if parent.trigger Event ue_sendSMS(ls_remarks, istr_policy.policyCode) = 0 then
+						commit using SQLCA_SMS;
+					else
+						rollback using SQLCA_SMS;
+					end if
+					
+					disconnect using SQLCA_SMS; */
+					
+					this.object.b_request.enabled 	= False
+					this.object.remarks.tabSequence 	= 0
+					
+					st_1.text = 'Waiting for approval. Please wait...'
+					
+					timer(3)
+							
+				elseif dwo.name = 'b_cancel' then
+					
+					update overridePolicy
+					set requestStatus = 'CN'
+					where tranNo = :is_tranNo
+					and divisionCode = :gs_divisionCode
+					and companyCode = :gs_companyCode
+					using SQLCA;
+					
+					commit using SQLCA;
+					
+					gb_authorizationNo = is_tranNo
+					
+					closeWithReturn(parent, 'CN')
+					
+				elseif dwo.name = 'b_reset' then
+					this.setitem(1,'remarks',is_remarks)
+				end IF
+				
+				------END WINDOW POP UP SEND REQUEST
+				
+				--IF CLICK BUTTON PROCESS
+				--THE VISUAL FORM COLUMN
+				SELECT  overridePolicy.tranNo ,
+				overridePolicy.approvedBy ,
+				overridePolicy.managerRemarks ,
+				overridePolicy.dateApproved ,
+				overridePolicy.requestStatus 
+				FROM overridePolicy
+				WHERE ( overridePolicy.tranNo = :as_tranNo ) AND
+				( overridePolicy.divisionCode = :as_division ) AND
+				( overridePolicy.companyCode = :as_company ) and 
+				( overridePolicy.requestStatus not in ('SM','OG','CN') )  
+				
+				
+				if dwo.name = 'b_proceed' then
+					this.acceptText()
+					
+				   istr_override_policy.tranNo 			= is_tranNo
+					istr_override_policy.requestStatus 	=	this.getItemString(row,'requestStatus')
+					istr_override_policy.remarks			=  trim(this.getItemString(row,'managerremarks'))
+					istr_override_policy.dateApproved	= 	this.getItemdateTime(row,'dateApproved')
+					istr_override_policy.approvedBy		=  trim(this.getItemString(row,'approvedBy'))
+					
+					update overridePolicy
+					set dateApproved = :istr_override_policy.dateApproved,
+						 managerRemarks = :istr_override_policy.remarks,
+						 approvedBy = :istr_override_policy.approvedBy,
+						 requestStatus = :istr_override_policy.requestStatus
+					where tranNo = :is_tranNo
+					and divisionCode = :gs_divisionCode
+					and companyCode = :gs_companyCode
+					using SQLCA;
+					
+					commit using SQLCA;
+					
+					gb_authorizationNo = is_tranNo
+					
+					closeWithReturn(parent, istr_override_policy.requestStatus)
+					
+				end IF
+				
+				----END WINDOW POP UP PROCESS				
+				
+				--FEEDBACK RETURN WHEN FORM POP UP CLOSE 
 				if message.stringParm = 'CN' then
 					guo_func.msgbox("Policy Override!!!", &
 									"You have cancelled the authorization.  This will cancel your transaction.", &										
@@ -714,18 +955,17 @@ SELECT  applofexttranhdr.tranno ,
 					return false
 				elseif message.stringParm = 'ER' then
 					return false
-				end if
-			else  // policy ignored close window transaction
-				guo_func.msgbox("Policy Override!!!", &
-								"You have cancelled the authorization.  This will cancel your transaction.", &										
-								gc_Information, &
-								gc_OKOnly, &
-								"Please secure an authorization for overriding this policy.")
-								
-				// reset entry		
-				return false
-			end if
-			
+					end if
+				else  // policy ignored close window transaction
+					guo_func.msgbox("Policy Override!!!", &
+									"You have cancelled the authorization.  This will cancel your transaction.", &										
+									gc_Information, &
+									gc_OKOnly, &
+									"Please secure an authorization for overriding this policy.")
+									
+					// reset entry		
+					return false
+				end if			
 		end if
 		return true
 		--END VALIDASI
@@ -812,7 +1052,8 @@ SELECT  applofexttranhdr.tranno ,
 		
 		--END PROCESS GET HEADER DATA
        
----FORM DETAIL
+---FORM DETAIL KEY IN DATA
+		
   SELECT  acquisitiontypemaster.acquisitiontypename ,           
 	applofexttrandtl.qty ,          
 	 applofexttrandtl.rate ,           
@@ -823,10 +1064,247 @@ SELECT  applofexttranhdr.tranno ,
 	FROM applofexttrandtl ,           
 	acquisitiontypemaster     
 	WHERE ( applofexttrandtl.acquisitiontypecode = acquisitiontypemaster.acquisitiontypecode )
-	 and          ( ( applofexttrandtl.tranno = :as_tranNo ) )  
+	 and          ( ( applofexttrandtl.tranno = :as_tranNo ) ) 
+	 
+	--KEY IN VALUE noofextension TO KEY IN DATA
+	 
+	long ll_noOfExtensions, ll_noOfApplTransfer
 
---SAVE BUTTON
+	long ll_row, ll_success
+	string ls_search, ls_result, ls_acctNo, ls_requiresApproval 
+	string ls_reqApp_RND 	, ls_requiresApproval_RWD
+	
+	ls_requiresApproval = ''
+	ls_reqApp_RND 	= ''
+	ls_requiresApproval_RWD = ''
+	
+	s_stbPackages lstr_packages
+	
+	string ls_subscriberName, ls_serviceAddress, ls_billingAddress
+	string ls_package, ls_generalPackage
+	string ls_subscriberStatus, ls_chargeType
+	string ls_subscriberType, ls_subscriberUserType
+	decimal{2} ld_occupancyRate, ld_monthlyMlineFee, ld_monthlyExtFee
+	long ll_noOfExt, ll_noOfSTB, ll_rows, ll_priority
+	
+	
+	ls_acctNo = dw_header.GetItemString(1,'acctNo')
+	
+	string ls_mop
+	
+	if data = 'S' then
+		
+			this.object.noofmonths.visible = True
+			this.setitem(getrow(),'noofmonths','24')
+			
+		else
+			
+			this.object.noofmonths.visible = False
+			
+	
+	end if
+	
+	
+	if data = 'noofextension' then
+		ll_noOfExtensions = this.getItemNumber(1,'noofextension')
+		if ll_noOfExtensions > 0 THEN
+			dw_detail.reset()
+			
+			
+		--OPEN WINDOW POP UP FORM
+		
+		openWithParm(w_digital_packages_IPTV,ll_noOfExtensions)
+		
+		--THE FORM COLUMN WHEN OPEN RETRIEVE WITH PARAMATER as_division , as_company
+		 SELECT arPackageMaster.packageName,   
+         	arPackageMaster.packageCode,
+         	''selected --(CHECK BOX TO SELECT )
+		   FROM arPackageMaster
+		   WHERE ( arPackageMaster.divisionCode = :as_division ) AND  
+		         ( arPackageMaster.companyCode = :as_company ) AND
+		         ( arPackageMaster.isiptvpackage = 'Y')
+		         
+		 --SELECT THE PACKANGE THEN CLICK BUTTON OK
+		  	int li_row, li_ctr
+			string ls_selected
+			
+			istr_packages = istr_empty
+			
+			dw_1.acceptText()
+			
+			for li_row = 1 to dw_1.rowCount()
+				ls_selected = dw_1.getItemString(li_row,'selected')
+				if ls_selected = 'Y' then
+					li_ctr ++
+					istr_packages.codepackage[li_ctr] = dw_1.getItemString(li_row,'packageCode')
+					istr_packages.namepackage[li_ctr] = dw_1.getItemString(li_row,'packageName')
+				end if
+			next
+			if li_ctr > il_noOfextension then
+				guo_func.msgBox("ATTENTION","You are only allowed to select  not more than "+string(il_noOfExtension,'#,###')+' packages.')
+				return
+			elseif  li_ctr > 1  then
+				guo_func.msgBox("ATTENTION","You are required to select ONLY 1 package")
+				return
+			elseif li_ctr = 0 then
+				guo_func.msgBox("ATTENTION","You are required to select ONLY 1 package")
+				return
+			end if
+			istr_packages.remarks = 'OK'
+			closeWithReturn(parent, istr_packages) 
+			
+			-----END WINDOW POP UP PROCESS
+			
+			lstr_packages = message.powerObjectParm				
+			
+			if lstr_packages.remarks <> 'OK' then			
+				guo_func.msgBox("ATTENTION","You must select packages for your extensions.")	
+				return 2
+			end if
+			
+			--insert 'RND' option rent no deposit
+			
+			for ll_row = 1 to upperBound(lstr_packages.codepackage)
+				dw_detail.insertRow(0)
+				dw_detail.scrollToRow( ll_row )
+				dw_detail.setItem( ll_row, "acquisitionTypeCode", 'RND' )
+				dw_detail.setItem( ll_row, "requiresApproval", 'N' 	)
+				dw_detail.setItem( ll_row, "applofexttrandtl_qty", 0 )
+				dw_detail.setItem( ll_row, "rate", 0.00 )
+				dw_detail.setItem( ll_row, "amount", 0.00 )
+				dw_detail.setItem( ll_row, "priority", 3 )
+				dw_detail.setItem( ll_row, "packageCode", lstr_packages.codepackage[ll_row] )
+				dw_detail.setItem( ll_row, "packagename", lstr_packages.namepackage[ll_row] )				
+			next
+		
+		else
+			// noofextension must be greater than zero
+			guo_func.msgBox("No of Extension Error.", "No of extension must be greater than zero")
+			return 2
+		end if
+		
+		return 0
+	end if 
+	
+	if dwo.name = 'noofextension' then
+	
+		ll_noOfExtensions = long(data)	
+		if ll_noOfExtensions > 0 THEN
+		
+		ll_rows = dw_detail.getRow()
+		if ll_rows > 0 then
+			dw_detail.reset()
+		end if
+		
+		dw_detail.scrollToRow( ll_row )
+		dw_detail.setItem( ll_row, "acquisitionTypeCode", 'BUY' )
+		dw_detail.setItem( ll_row, "requiresApproval", ls_requiresApproval)
+		dw_detail.setItem( ll_row, "applofexttrandtl_qty", 0 )
+		dw_detail.setItem( ll_row, "rate", id_stbPricePerBox )
+		dw_detail.setItem( ll_row, "amount", 0.00 )
+		dw_detail.setItem( ll_row, "priority", ll_priority )
+		dw_detail.setItem( ll_row, "packageCode", '00000')
+		
+		select priority, requiresApproval 
+		into :ll_priority, :ls_reqApp_RND 	
+		from acquisitionTypeMaster 	
+		where acquisitionTypeCode = 'RND'
+		using SQLCA;
+		if SQLCA.SQLCode <> 0 then
+			is_msgNo    = 'SM-0000001'
+			is_msgTrail = "select in acquisitionTypeMaster"+"SQLCode    : "+string(SQLCA.SQLCode) + "SQLErrText : " + SQLCA.SQLErrText
+			return -1	
+		end if	
+		
+		long ll_ctr_iptv
+		string ls_packageCode_mainline_iptv, ls_packageName_mainlne_iptv
+		
+		select count(a.serialNo), a.packagecode , b.packageName into :ll_ctr_iptv, :ls_packageCode_mainline_iptv, :ls_packageName_mainlne_iptv
+		from subscriberCPEmaster a
+		inner join arPackageMaster b on b.packageCode = a.packageCode and b.divisionCode = a.divisionCode
+		where a.acctNo = :ls_acctNo
+		and a.divisionCode = :gs_divisionCode
+		and a.companyCode = :gs_companyCode
+		and a.cpetypecode = 'IPTV'
+		AND a.ISPRIMARY = 'Y'
+		group by a.packageCode, b.packageName
+		using SQLCA;
+		
+		--OPEN WINDOW POP UP FORM
+		
+		openWithParm(w_digital_packages_IPTV,ll_noOfExtensions)
+		
+		--THE FORM COLUMN WHEN OPEN RETRIEVE WITH PARAMATER as_division , as_company
+		 SELECT arPackageMaster.packageName,   
+         	arPackageMaster.packageCode,
+         	''selected --(CHECK BOX TO SELECT )
+		   FROM arPackageMaster
+		   WHERE ( arPackageMaster.divisionCode = :as_division ) AND  
+		         ( arPackageMaster.companyCode = :as_company ) AND
+		         ( arPackageMaster.isiptvpackage = 'Y')
+		         
+		 --SELECT THE PACKANGE THEN CLICK BUTTON OK
+		  	int li_row, li_ctr
+			string ls_selected
+			
+			istr_packages = istr_empty
+			
+			dw_1.acceptText()
+			
+			for li_row = 1 to dw_1.rowCount()
+				ls_selected = dw_1.getItemString(li_row,'selected')
+				if ls_selected = 'Y' then
+					li_ctr ++
+					istr_packages.codepackage[li_ctr] = dw_1.getItemString(li_row,'packageCode')
+					istr_packages.namepackage[li_ctr] = dw_1.getItemString(li_row,'packageName')
+				end if
+			next
+			if li_ctr > il_noOfextension then
+				guo_func.msgBox("ATTENTION","You are only allowed to select  not more than "+string(il_noOfExtension,'#,###')+' packages.')
+				return
+			elseif  li_ctr > 1  then
+				guo_func.msgBox("ATTENTION","You are required to select ONLY 1 package")
+				return
+			elseif li_ctr = 0 then
+				guo_func.msgBox("ATTENTION","You are required to select ONLY 1 package")
+				return
+			end if
+			istr_packages.remarks = 'OK'
+			closeWithReturn(parent, istr_packages) 
+			
+			-----END WINDOW POP UP PROCESS
+		        
+		
+		lstr_packages = message.powerObjectParm
+		
+		if lstr_packages.remarks <> 'OK' then			
+			guo_func.msgBox("ATTENTION","You must select packages for your extensions.")	
+			return 2
+		end IF
+		
+		for ll_row = 1 to upperBound(lstr_packages.codepackage)
+			dw_detail.insertRow(0)
+			dw_detail.scrollToRow( ll_row )
+			dw_detail.setItem( ll_row, "acquisitionTypeCode", 'BUY' )
+			dw_detail.setItem( ll_row, "requiresApproval", 'N' 	)
+			dw_detail.setItem( ll_row, "applofexttrandtl_qty", 0 )
+			dw_detail.setItem( ll_row, "rate", 0.00 )
+			dw_detail.setItem( ll_row, "amount", 0.00 )
+			dw_detail.setItem( ll_row, "priority", 3 )
+			dw_detail.setItem( ll_row, "packageCode", lstr_packages.codepackage[ll_row] )
+			dw_detail.setItem( ll_row, "packageName", lstr_packages.namepackage[ll_row] )				
+		next
+	 else
+		guo_func.msgBox("No of Extension Error.", "No of extension must be greater than zero")
+		return 2
+	end if	
+end IF
 
+----END KEY IN DW DETAIL
+
+	 
+--WHEN ALL DONE JEY IN THEN GO TO PROCESS BUTTON	 
+----SAVE BUTTON
 long 			ll_acctno, ll_tranNo, ll_extensions
 string 			ls_acctno, ls_tranTypeCode, ls_packageCode
 decimal{2}		ld_totalInstFee
@@ -1573,17 +2051,17 @@ ocTranNo = ll_tranNo - 1
 return TRUE
 --END VALIDASI-----------------------
 
-if not uo_subs_advar.setParentTranNo(is_tranNo) then
-	is_msgno = 'SM-0000001'
-	is_msgtrail = uo_subs_advar.lastSQLCode + "~r~n" + uo_subs_advar.lastSQLErrText
-	is_sugtrail = 'Error produced by uo_subs_advar.setParentTranNo()'
-	return -1
-end IF
-
----VALIDASI uo_subs_advar.setParentTranNo(is_tranNo)
-parentTranNo = as_tranNo
-return TRUE
---END VALIDASI
+	if not uo_subs_advar.setParentTranNo(is_tranNo) then
+		is_msgno = 'SM-0000001'
+		is_msgtrail = uo_subs_advar.lastSQLCode + "~r~n" + uo_subs_advar.lastSQLErrText
+		is_sugtrail = 'Error produced by uo_subs_advar.setParentTranNo()'
+		return -1
+	end IF
+	
+	---VALIDASI uo_subs_advar.setParentTranNo(is_tranNo)
+	parentTranNo = as_tranNo
+	return TRUE
+	--END VALIDASI
 
 if not uo_subs_advar.setJoReferenceNo('') then
 	is_msgno = 'SM-0000001'
@@ -1658,11 +2136,11 @@ if ad_applicationFee > 0 then
 	end IF
 	
 	--VALIDASI uo_subs_advar.insertNewAr(is_tranno, is_transactionID, 'SFEXT', ad_applicationFee, idt_trandate, string(idt_trandate, 'mmm yyyy'), iuo_subscriber.currencyCode, iuo_currency.conversionRate)
-	// ==================================================
-	// NGLara | 06/14/2007
-	// This is the latest method, the old one may be
-	// removed after we finalized all updates
-	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	--==================================================
+	--NGLara | 06/14/2007
+	--This is the latest method, the old one may be
+	--removed after we finalized all updates
+	--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	
 	string	ls_glAccountCode
 	long		ll_row
@@ -1709,45 +2187,1369 @@ if ad_applicationFee > 0 then
 	
 end if
 
-if not uo_subs_advar.applyOpenCreditMultiple('', '') then
-	is_msgno = 'SM-0000001'
-	is_msgtrail = uo_subs_advar.lastSQLCode + "~r~n" + uo_subs_advar.lastSQLErrText
-	is_sugtrail = 'Error produced by uo_subs_advar.applyOcToBalances()'
-	return -1
-end if
+	if not uo_subs_advar.applyOpenCreditMultiple('', '') then
+		is_msgno = 'SM-0000001'
+		is_msgtrail = uo_subs_advar.lastSQLCode + "~r~n" + uo_subs_advar.lastSQLErrText
+		is_sugtrail = 'Error produced by uo_subs_advar.applyOcToBalances()'
+		return -1
+	end IF
+	
+	--VALIDASI uo_subs_advar.applyOpenCreditMultiple('', '')
+	--========================================================================================================================
+	--NGLara | 06/23/2007
+	--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-if not uo_subs_advar.setOcTranNo() then
-	is_msgno = 'SM-0000001'
-	is_msgtrail = uo_subs_advar.lastSQLCode + "~r~n" + uo_subs_advar.lastSQLErrText
-	is_sugtrail = 'Error produced by uo_subs_advar.setOcTranNo()'
-	return -1
-end if
+	string		ls_glAccountCode, ls_glForex
+	string		ls_refoctranno, ls_refoctypecode, ls_documentno, ls_trantypecode, ls_artypecode, ls_octranno, ls_ocTranTypecode
+	string		ls_sourceOcTypeCode, ls_sourceOcRefTranNo, ls_sourceOcTranTypeCode, ls_xoctranno, ls_sourcetable
+	decimal{2}	ld_adv_balance, ld_adv_appliedamt
+	decimal{2}	ld_ar_curr_newbalance, ld_ar_balance
+	decimal{2}	ld_ar_curr_paidamt, ld_ar_paidamt, ld_appliedToRIP
+	long			ll_adv_records, ll_adv_row
+	long			ll_ar_records, ll_ar_row, ll_applofoc_row, ll_row
+	boolean		lb_ocapplied
+	
+	string		ls_currencyCode, ls_ocCurrencyCode										//
+	decimal{2}	ld_conversionRate, ld_ocConversionRate, ld_forexAmount			//added codes for currency
+	decimal{30} ld_adv_appliedamt_usd, ld_adv_balance_usd, ld_ar_paidamt_usd	//
+	
+	lastMethodAccessed = 'applyOpenCreditMultiple'
+	
+	if isnull(parentTranNo) or isnull(parentTranTypeCode) then
+		lastSQLCode = '-2'
+		lastSQLErrText = 'Unable to continue, parentTranNo and parentTranTypeCode must have been set a value.'
+		return FALSE
+	end if
 
-if not uo_subs_advar.postOpenCreditUpdates() then
-	is_msgno = 'SM-0000001'
-	is_msgtrail = uo_subs_advar.lastSQLCode + "~r~n" + uo_subs_advar.lastSQLErrText
-	is_sugtrail = 'Error produced by uo_subs_advar.postOpenCreditUpdates()'
-	return -1
-end if
+	if isNull(tranCurrencyCode) then
+		tranCurrencyCode = subsCurrencyCode
+		tranConversionRate = 1
+	end if
+	
+	f_displayStatus('Extracting Advances...')
+	if as_refTranTypeCode = '' and as_refTranNo = '' then
+		if not extractSubsAdvAndCM() then
+			return FALSE
+		end if
+	else
+		if not extractSubsAdvAndCMExcept(as_refTranTypeCode, as_refTranNo) then
+			return FALSE
+		end if
+	end if
+	
+	f_displayStatus('Extacting AR Balances...')
+	if not extractArBalances() then
+		return FALSE
+	end if
+	
+	dw_ar.SetSort('groupSort A, tranDate A, arTypeCodePriority A, tranNo A')
+	dw_ar.Sort()
+	
+	dw_applofoc_hdr.reset()
+	dw_applofoc_dtl.reset()
+	
+	ll_adv_records = dw_adv.rowcount()
+	dw_adv.setsort('trandate A, octypecodepriority A')
+	dw_adv.sort()
+for ll_adv_row = 1 to ll_adv_records
+	
+	f_displayStatus('Applying OC Type [' + ls_refOcTypecode + ']...')
 
-if not uo_subs_advar.postArUpdates() then
-	is_msgno = 'SM-0000001'
-	is_msgtrail = uo_subs_advar.lastSQLCode + "~r~n" + uo_subs_advar.lastSQLErrText
-	is_sugtrail = 'Error produced by uo_subs_advar.postArUpdates()'
-	return -1
-end if
+	lb_ocapplied = FALSE
+		
+	--========================================================
+	--added codes for currency
+	--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	if subsCurrencyCode = 'USD' then
+		ld_adv_appliedamt_usd	= dw_adv.object.appliedAmt[ll_adv_row]
+		ld_adv_balance_usd		= dw_adv.object.newBalance[ll_adv_row]
+	elseif subsCurrencyCode = 'PHP' then
+		ld_adv_appliedamt 	= dw_adv.object.appliedAmt[ll_adv_row]
+		ld_adv_balance 		= dw_adv.object.newBalance[ll_adv_row]
+	end if	
+	--========================================================
+	--end
+	--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	
+	ls_xoctranno				= trim(dw_adv.object.tranNo[ll_adv_row])
+	ls_refOctranNo				= trim(dw_adv.object.refTranNo[ll_adv_row])
+	ls_refOcTypecode			= trim(dw_adv.object.octypecode[ll_adv_row])
+	ls_ocTranTypecode			= trim(dw_adv.object.trantypecode[ll_adv_row])
+	ls_sourceOcTypeCode		= trim(dw_adv.object.sourceOcTypeCode[ll_adv_row])
+	ls_sourceOcRefTranNo		= trim(dw_adv.object.sourceOcRefTranNo[ll_adv_row])
+	ls_sourceOcTranTypeCode	= trim(dw_adv.object.sourceOcTranTypeCode[ll_adv_row])
+	ls_ocCurrencyCode			= trim(dw_adv.object.currencyCode[ll_adv_row])
+	ld_ocConversionRate		= dw_adv.object.conversionRate[ll_adv_row]
+	
+	--==================================================
+	--basically, this is being used by w_reapply_oc
+	--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~	
+	if isnull(parentTranNo) or parentTranNo = '' then
+		parentTranNo = ls_refOctranNo
+	end if	
+	if isnull(parentTranTypeCode) or parentTranTypeCode = '' then
+		parentTranTypeCode = ls_ocTranTypeCode
+	end if
+	--==================================================
+	--end
+	--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~	
 
-if not uo_subs_advar.postApplicationOfOpenCredit() then
-	is_msgno = 'SM-0000001'
-	is_msgtrail = uo_subs_advar.lastSQLCode + "~r~n" + uo_subs_advar.lastSQLErrText
-	is_sugtrail = 'Error produced by uo_subs_advar.postApplicationOfOpenCredit()'
-	return -1
-end if
+	--==============================================================
+	--Just to make sure that subscription and equipment deposits and 
+	--incentive will not be applied to any accounts receivables
+	--
+	--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	if ls_refoctypecode = 'SUBSDEP' or ls_refoctypecode = 'SUBSDEQ' then continue
+	if ls_refoctypecode = 'ADVDEP' or ls_refoctypecode = 'SECDEP' then continue  --//for leasing -zar 03022010
+	
+	ll_ar_records = dw_ar.rowcount()
+		for ll_ar_row = 1 to ll_ar_records
+			
+			f_displayStatus('Applying OC Type [' + ls_refOcTypecode + '] to [' + ls_artypecode + ']...')
+	
+			ld_ar_paidamt 			= 0
+			ld_ar_paidamt_usd		= 0	//added codes for currency
+	
+			ls_documentno			= dw_ar.getitemstring(ll_ar_row, 'tranno'				)
+			ls_trantypecode		= dw_ar.getitemstring(ll_ar_row, 'trantypecode'		)
+			ls_artypecode			= trim(dw_ar.getitemstring(ll_ar_row, 'artypecode'	))
+			
+			ld_ar_curr_paidamt 	= dw_ar.getitemdecimal(ll_ar_row, 'paidamt'			)
+			ld_ar_curr_newbalance= dw_ar.getitemdecimal(ll_ar_row, 'newbalance'		)
+			
+			ls_sourcetable			= dw_ar.getitemstring(ll_ar_row, 'sourcetable'		)
+			
+			ls_currencyCode		= dw_ar.getitemString(ll_ar_row, 'currencycode'		)		//added codes
+			ld_conversionRate		= dw_ar.getitemDecimal(ll_ar_row, 'conversionrate'	)	//for currency
+			
+			
+			
+			--added codes for verification of account types - ARCUS | ARLES | AROTH Does not automatically
+			--apply OC not unless arTypeCode is a DEPOSIT Receivable
+			if (ls_arTypeCode <> 'SCDEP' and  ls_arTypeCode <> 'ADDEP') and &
+				 ( accountTypeCode = 'ARLES' or &
+	 			   accountTypeCode = 'ARCUS' or &
+				   accountTypeCode = 'AROTH' ) then continue
+					
+			--Meaning if accountype = 'ARLES|AROTH|ARCUS' and arType = 'SCDEP|ADDEP' - it will proceed application
+				 		
+			--==================================================
+			--if the ls_refoctypecode is INCENTIVE, it should be
+			--applied to monthly subscribtion fee only.
+			--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+			if ls_refoctypecode = 'INCENTIV' and &
+				(ls_artypecode <> 'MAINF' and ls_artypecode <> 'EXTF' and ls_artypecode <> 'INSUF') then continue
+			--==================================================
+			--end
+			--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+			
+			
+			--==================================================
+			--if the ls_refoctypecode is CM, it should not be
+			--applied to RIP for Advances and Deposit Req's
+			--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+			if ls_refoctypecode = 'CM' and (ls_artypecode = 'OCADV' or ls_artypecode = 'OCDEP' or ls_artypecode = 'OCDEQ') then continue
+			--==================================================
+			--end
+			--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	
+			if isnull(ld_ar_curr_paidamt) then ld_ar_curr_paidamt = 0
+			if isnull(ld_ar_curr_newbalance) then ld_ar_curr_newbalance = 0
+			
+			ld_ar_curr_newbalance = ld_ar_curr_newbalance
+			
+			if (ld_ar_curr_newbalance) > 0 then	// para next time pamagbalik na...
+				
+				--========================================================
+				--added codes for currency
+				--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+				if subsCurrencyCode = 'USD' then //here
+					if (ld_adv_balance_usd) >= ld_ar_curr_newbalance then
+						ld_ar_paidamt_usd	= ld_ar_curr_newbalance
+						ld_ar_curr_newbalance = 0
+					else
+						ld_ar_paidamt_usd	= (ld_adv_balance_usd)
+						ld_ar_curr_newbalance = ld_ar_curr_newbalance - ld_ar_paidamt_usd
+					end if
+	
+					dw_ar.setitem(ll_ar_row, 'paidamt', ld_ar_paidamt_usd + ld_ar_curr_paidamt)
+					dw_ar.setitem(ll_ar_row, 'newbalance', ld_ar_curr_newbalance)
+				elseif subsCurrencyCode = 'PHP' then
+					if (ld_adv_balance) >= ld_ar_curr_newbalance then
+						ld_ar_paidamt 		= ld_ar_curr_newbalance
+						ld_ar_curr_newbalance = 0
+					else
+						ld_ar_paidamt 		= (ld_adv_balance)
+						ld_ar_curr_newbalance = ld_ar_curr_newbalance - ld_ar_paidamt	
+					end if
+	
+					dw_ar.setitem(ll_ar_row, 'paidamt', ld_ar_paidamt + ld_ar_curr_paidamt)
+					dw_ar.setitem(ll_ar_row, 'newbalance', ld_ar_curr_newbalance)
+				end if	
+				--========================================================
+				--end
+				--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	
+				--let's record the application detail first...
+				ll_applofoc_row = dw_applofoc_dtl.insertrow(0)
+				dw_applofoc_dtl.scrolltorow(ll_applofoc_row)
+				dw_applofoc_dtl.setitem(ll_applofoc_row, 'documentno'		, ls_documentno	)
+				dw_applofoc_dtl.setitem(ll_applofoc_row, 'trantypecode'	, ls_trantypecode	)
+				dw_applofoc_dtl.setitem(ll_applofoc_row, 'artypecode'		, ls_artypecode	)
+	
+				--========================================================
+				--added codes for currency
+				--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+				if subsCurrencyCode = 'USD' then
+					
+	
+					if not f_getGLIAccount('GLOFCADJR',ls_glForex,lastSQLErrText) then
+						lastSQLCode = '-2'					
+						return FALSE
+					end if	
+					
+					dw_applofoc_dtl.setitem(ll_applofoc_row, 'appliedamt'		, ld_ar_paidamt_usd	)
+	
+					ld_forexAmount = (ld_ar_paidamt_usd * dollarRate)/*current*/ - (ld_ar_paidamt_usd * ld_conversionRate)/*previous*/
+					dw_applofoc_dtl.setitem(ll_applofoc_row, 'forexamount', ld_forexAmount)
+	
+					if ld_forexAmount < 0 then //loss				
+						ld_forexAmount = ld_forexAmount * -1
+						iuo_glPoster.insertGLEntryDebit('', '', ls_glForex, ld_forexAmount)										
+					else                       //gain
+						iuo_glPoster.insertGLEntryCredit('', '', ls_glForex, ld_forexAmount)				  																
+					end if
+	
+				elseif subsCurrencyCode = 'PHP' then
+		
+					dw_applofoc_dtl.setitem(ll_applofoc_row, 'appliedamt'		, ld_ar_paidamt	)
+					dw_applofoc_dtl.setitem(ll_applofoc_row, 'forexamount', 0)
+	
+				end IF
+				
+				--========================================================
+				--end
+				--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+				
+				dw_applofoc_dtl.setitem(ll_applofoc_row, 'recordnumber'	, ll_adv_row		)
+				dw_applofoc_dtl.setitem(ll_applofoc_row, 'currencycode'	, ls_currencyCode )	//added codes
+				dw_applofoc_dtl.setitem(ll_applofoc_row, 'conversionrate', ld_conversionRate)	//for currency
+	
+				lb_ocapplied = TRUE
+	
+				--========================================================
+				--added codes for currency
+				--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+				if subsCurrencyCode = 'USD' then
+					ld_adv_balance_usd		= ld_adv_balance_usd - ld_ar_paidamt_usd
+					ld_adv_appliedamt_usd	= ld_adv_appliedamt_usd + ld_ar_paidamt_usd
+					ld_ar_paidamt = ld_ar_paidamt_usd
+				elseif subsCurrencyCode = 'PHP' then
+					ld_adv_balance 	= ld_adv_balance - ld_ar_paidamt
+					ld_adv_appliedamt = ld_adv_appliedamt + ld_ar_paidamt
+				end if	
+				--========================================================
+				--end
+				--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	
+			end if
+			
+			if ls_sourcetable = 'SDR' or ls_sourcetable = 'RIP' then
+				if ls_artypecode = 'OCDEP' and ld_ar_paidamt > 0 then
+					ocTranNo = ocTranNo + 1
+					ls_octranno = string(ocTranNo, '00000000')		
+					ll_row = dw_adv.insertrow(0)
+					dw_adv.scrolltorow(ll_row)
+					dw_adv.setitem(ll_row, 'tranno'			, ls_octranno			)
+					dw_adv.setitem(ll_row, 'octypecode'		, 'SUBSDEP'				)
+					dw_adv.setitem(ll_row, 'appliedamt'		, 0						)
+	
+					--========================================================
+					--added codes for currency
+					--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+					if subsCurrencyCode = 'USD' then
+						dw_adv.setitem(ll_row, 'balance'			, ld_ar_paidamt_usd	)
+						dw_adv.setitem(ll_row, 'newbalance'		, ld_ar_paidamt_usd	)
+					elseif subsCurrencyCode = 'PHP' then
+						dw_adv.setitem(ll_row, 'balance'			, ld_ar_paidamt		)
+						dw_adv.setitem(ll_row, 'newbalance'		, ld_ar_paidamt		)
+					end if
+					--========================================================
+					--end
+					--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	
+					dw_adv.setitem(ll_row, 'newrecord'		, 'Y'								)
+					dw_adv.setitem(ll_row, 'reftranno'		, parentTranNo					)
+					dw_adv.setitem(ll_row, 'trantypecode'	, parentTranTypeCode			)
+					dw_adv.setitem(ll_row, 'sourceOcTypeCode'	, ls_refOcTypecode 		)
+					dw_adv.setitem(ll_row, 'sourceOcRefTranNo', ls_refOctranNo 			)
+					dw_adv.setitem(ll_row, 'sourceOcTranTypeCode', ls_ocTranTypeCode 	)
+					dw_adv.setitem(ll_row, 'currencyCode', ls_ocCurrencyCode 			)
+					dw_adv.setitem(ll_row, 'conversionRate', ld_ocConversionRate 		)
+					dw_adv.setitem(ll_row, 'refApplTranTypeCode', ls_trantypecode		)
+					dw_adv.setitem(ll_row, 'refApplTranNo', ls_documentNo			 		)
+					
+					
+				elseif ls_artypecode = 'OCDEQ' and ld_ar_paidamt > 0 then
+					ocTranNo = ocTranNo + 1
+					ls_octranno = string(ocTranNo, '00000000')		
+					ll_row = dw_adv.insertrow(0)
+					dw_adv.scrolltorow(ll_row)
+					dw_adv.setitem(ll_row, 'tranno'			, ls_octranno					)
+					dw_adv.setitem(ll_row, 'octypecode'		, 'SUBSDEQ'						)
+					dw_adv.setitem(ll_row, 'appliedamt'		, 0								)
+	
+					--========================================================
+					--added codes for currency
+					--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+					if subsCurrencyCode = 'USD' then
+						dw_adv.setitem(ll_row, 'balance'			, ld_ar_paidamt_usd		)
+						dw_adv.setitem(ll_row, 'newbalance'		, ld_ar_paidamt_usd		)
+					elseif subsCurrencyCode = 'PHP' then
+						dw_adv.setitem(ll_row, 'balance'			, ld_ar_paidamt			)
+						dw_adv.setitem(ll_row, 'newbalance'		, ld_ar_paidamt			)
+					end if
+					--========================================================
+					--end
+					--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+					
+					dw_adv.setitem(ll_row, 'newrecord'		, 'Y'								)
+					dw_adv.setitem(ll_row, 'reftranno'		, parentTranNo					)
+					dw_adv.setitem(ll_row, 'trantypecode'	, parentTranTypeCode			)
+					dw_adv.setitem(ll_row, 'sourceOcTypeCode'	, ls_refOcTypecode 		)
+					dw_adv.setitem(ll_row, 'sourceOcRefTranNo', ls_refOctranNo 			)
+					dw_adv.setitem(ll_row, 'sourceOcTranTypeCode', ls_ocTranTypeCode 	)
+					dw_adv.setitem(ll_row, 'currencyCode', ls_ocCurrencyCode 			)
+					dw_adv.setitem(ll_row, 'conversionRate', ld_ocConversionRate 		)
+					dw_adv.setitem(ll_row, 'refApplTranTypeCode', ls_trantypecode		)
+					dw_adv.setitem(ll_row, 'refApplTranNo', ls_documentNo			 		)
+					
+				elseif ls_artypecode = 'ADDEP' and ld_ar_paidamt > 0 then             // for leasing -zar-03022010
+					ocTranNo = ocTranNo + 1
+					ls_octranno = string(ocTranNo, '00000000')		
+					ll_row = dw_adv.insertrow(0)
+					dw_adv.scrolltorow(ll_row)
+					dw_adv.setitem(ll_row, 'tranno'			, ls_octranno					)
+					dw_adv.setitem(ll_row, 'octypecode'		, 'ADVDEP'						)
+					dw_adv.setitem(ll_row, 'appliedamt'		, 0								)
+	
+					--========================================================
+					--added codes for currency
+					--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+					if subsCurrencyCode = 'USD' then
+						dw_adv.setitem(ll_row, 'balance'			, ld_ar_paidamt_usd		)
+						dw_adv.setitem(ll_row, 'newbalance'		, ld_ar_paidamt_usd		)
+					elseif subsCurrencyCode = 'PHP' then
+						dw_adv.setitem(ll_row, 'balance'			, ld_ar_paidamt			)
+						dw_adv.setitem(ll_row, 'newbalance'		, ld_ar_paidamt			)
+					end if
+					--========================================================
+					--end
+					--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+					
+					dw_adv.setitem(ll_row, 'newrecord'		, 'Y'								)
+					dw_adv.setitem(ll_row, 'reftranno'		, parentTranNo					)
+					dw_adv.setitem(ll_row, 'trantypecode'	, parentTranTypeCode			)
+					dw_adv.setitem(ll_row, 'sourceOcTypeCode'	, ls_refOcTypecode 		)
+					dw_adv.setitem(ll_row, 'sourceOcRefTranNo', ls_refOctranNo 			)
+					dw_adv.setitem(ll_row, 'sourceOcTranTypeCode', ls_ocTranTypeCode 	)
+					dw_adv.setitem(ll_row, 'currencyCode', ls_ocCurrencyCode 			)
+					dw_adv.setitem(ll_row, 'conversionRate', ld_ocConversionRate 		)
+					dw_adv.setitem(ll_row, 'refApplTranTypeCode', ls_trantypecode		)
+					dw_adv.setitem(ll_row, 'refApplTranNo', ls_documentNo			 		)
+					
+				elseif ls_artypecode = 'SCDEP' and ld_ar_paidamt > 0 then	         --// for leasing -zar-03022010
+					ocTranNo = ocTranNo + 1
+					ls_octranno = string(ocTranNo, '00000000')		
+					ll_row = dw_adv.insertrow(0)
+					dw_adv.scrolltorow(ll_row)
+					dw_adv.setitem(ll_row, 'tranno'			, ls_octranno					)
+					dw_adv.setitem(ll_row, 'octypecode'		, 'SECDEP'						)
+					dw_adv.setitem(ll_row, 'appliedamt'		, 0								)
+	
+					--========================================================
+					--added codes for currency
+					--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+					if subsCurrencyCode = 'USD' then
+						dw_adv.setitem(ll_row, 'balance'			, ld_ar_paidamt_usd		)
+						dw_adv.setitem(ll_row, 'newbalance'		, ld_ar_paidamt_usd		)
+					elseif subsCurrencyCode = 'PHP' then
+						dw_adv.setitem(ll_row, 'balance'			, ld_ar_paidamt			)
+						dw_adv.setitem(ll_row, 'newbalance'		, ld_ar_paidamt			)
+					end IF
+					
+					--========================================================
+					--end
+					--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+					
+					dw_adv.setitem(ll_row, 'newrecord'		, 'Y'								)
+					dw_adv.setitem(ll_row, 'reftranno'		, parentTranNo					)
+					dw_adv.setitem(ll_row, 'trantypecode'	, parentTranTypeCode			)
+					dw_adv.setitem(ll_row, 'sourceOcTypeCode'	, ls_refOcTypecode 		)
+					dw_adv.setitem(ll_row, 'sourceOcRefTranNo', ls_refOctranNo 			)
+					dw_adv.setitem(ll_row, 'sourceOcTranTypeCode', ls_ocTranTypeCode 	)
+					dw_adv.setitem(ll_row, 'currencyCode', ls_ocCurrencyCode 			)
+					dw_adv.setitem(ll_row, 'conversionRate', ld_ocConversionRate 		)
+					dw_adv.setitem(ll_row, 'refApplTranTypeCode', ls_trantypecode		)
+					dw_adv.setitem(ll_row, 'refApplTranNo', ls_documentNo			 		)
+				elseif ls_arTypeCode = 'OCADV' and ld_ar_paidamt > 0 then
+					
+					ocTranNo = ocTranNo + 1
+					ls_octranno = string(ocTranNo, '00000000')		
+					ll_row = dw_adv.insertrow(0)
+					dw_adv.scrolltorow(ll_row)
+					dw_adv.setitem(ll_row, 'tranno'			, ls_octranno					)
+					dw_adv.setitem(ll_row, 'octypecode'		, 'SUBSADV'						)
+					dw_adv.setitem(ll_row, 'appliedamt'		, 0								)
+	
+					--========================================================
+					--added codes for currency
+					--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+					
+					if subsCurrencyCode = 'USD' then
+						dw_adv.setitem(ll_row, 'balance'			, ld_ar_paidamt_usd		)
+						dw_adv.setitem(ll_row, 'newbalance'		, ld_ar_paidamt_usd		)
+					elseif subsCurrencyCode = 'PHP' then
+						dw_adv.setitem(ll_row, 'balance'			, ld_ar_paidamt			)
+						dw_adv.setitem(ll_row, 'newbalance'		, ld_ar_paidamt			)
+					end IF
+					
+					--========================================================
+					--end
+					--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+					
+					dw_adv.setitem(ll_row, 'newrecord'		, 'R'								)
+					dw_adv.setitem(ll_row, 'reftranno'		, parentTranNo					)
+					dw_adv.setitem(ll_row, 'trantypecode'	, parentTranTypeCode			)
+					dw_adv.setitem(ll_row, 'sourceOcTypeCode'	, ls_refOcTypecode 		)
+					dw_adv.setitem(ll_row, 'sourceOcRefTranNo', ls_refOctranNo 			)
+					dw_adv.setitem(ll_row, 'sourceOcTranTypeCode', ls_ocTranTypeCode 	)
+					dw_adv.setitem(ll_row, 'currencyCode', ls_ocCurrencyCode 			)
+					dw_adv.setitem(ll_row, 'conversionRate', ld_ocConversionRate 		)
+					dw_adv.setitem(ll_row, 'refApplTranTypeCode', ls_trantypecode		)
+					dw_adv.setitem(ll_row, 'refApplTranNo', ls_documentNo			 		)				
+								
+				end if		
+			end if
+			
+			--========================================================
+			--added codes for currency
+			--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+			if subsCurrencyCode = 'USD' then
+				if (ld_adv_balance_usd) <= 0 then exit
+			elseif subsCurrencyCode = 'PHP' then
+				if (ld_adv_balance) <= 0 then exit
+			end if	
+			
+		next
+	
+		--========================================================
+		--added codes for currency
+		--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		if subsCurrencyCode = 'USD' then
+			dw_adv.setitem(ll_adv_row, 'appliedamt', ld_adv_appliedamt_usd)
+			dw_adv.setitem(ll_adv_row, 'newbalance', ld_adv_balance_usd)
+		elseif subsCurrencyCode = 'PHP' then
+			dw_adv.setitem(ll_adv_row, 'appliedamt', ld_adv_appliedamt)
+			dw_adv.setitem(ll_adv_row, 'newbalance', ld_adv_balance)
+		end if	
+		
+		if lb_ocapplied then
+			ll_applofoc_row = dw_applofoc_hdr.insertrow(0)
+			dw_applofoc_hdr.scrolltorow(ll_applofoc_row)
+	
+			--========================================================
+			--added codes for currency
+			--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+			
+			if subsCurrencyCode = 'USD' then
+				dw_applofoc_hdr.setitem(ll_applofoc_row, 'ocamt'			, ld_adv_balance_usd + ld_adv_appliedamt_usd)
+				dw_applofoc_hdr.setitem(ll_applofoc_row, 'appliedocamt'	, ld_adv_appliedamt_usd						)
+			elseif subsCurrencyCode = 'PHP' then
+				dw_applofoc_hdr.setitem(ll_applofoc_row, 'ocamt'			, ld_adv_balance + ld_adv_appliedamt)
+				dw_applofoc_hdr.setitem(ll_applofoc_row, 'appliedocamt'	, ld_adv_appliedamt						)
+			end if
+			
+			if not tranCurrencyCode = '' then
+				ls_currencyCode = tranCurrencyCode
+			end if
+			
+			if not tranConversionRate = 0 then
+				ld_conversionRate = tranConversionRate
+			end if
+			
+			
+			dw_applofoc_hdr.setitem(ll_applofoc_row, 'refoctranno'	, ls_xoctranno								)
+			dw_applofoc_hdr.setitem(ll_applofoc_row, 'refoctypecode'	, ls_refoctypecode						)
+			dw_applofoc_hdr.setitem(ll_applofoc_row, 'recordnumber'	, ll_adv_row								)
+			dw_applofoc_hdr.setitem(ll_applofoc_row, 'currencycode'	, ls_ocCurrencyCode						)
+			dw_applofoc_hdr.setitem(ll_applofoc_row, 'conversionrate', ld_ocConversionRate					)
+		end if
+		
+		--========================================================
+		--NGLara | 12-19-2007
+		--If in case there is a remaining balance no the applied
+		--applicant's advance
+		--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+		if (ld_adv_balance > 0 or ld_adv_balance_usd > 0) and ls_refOcTypecode = 'APPLADV' then
+			
+			string ls_openCreditAccount
+			// =======================================================
+			// 		insert GL Entry: Debit Applicant's Advances
+			// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+			if not getGLIAccount(ls_refOcTypecode, ls_openCreditAccount) then
+				return FALSE
+			end if
+			if subsCurrencyCode = 'USD' then
+				iuo_glPoster.insertGLEntryDebit('SAV-AOCM-DB', '', ls_openCreditAccount, ld_adv_balance_usd)
+			else
+				iuo_glPoster.insertGLEntryDebit('SAV-AOCM-DB', '', ls_openCreditAccount, ld_adv_balance)
+			end if
+			
+			
+			ocTranNo = ocTranNo + 1
+			ls_octranno = string(ocTranNo, '00000000')		
+			ll_row = dw_adv.insertrow(0)
+			dw_adv.scrolltorow(ll_row)
+			dw_adv.setitem(ll_row, 'tranno'			, ls_octranno					)
+			dw_adv.setitem(ll_row, 'octypecode'		, 'SUBSADV'						)
+			dw_adv.setitem(ll_row, 'appliedamt'		, 0								)
+	
+			--========================================================
+			--added codes for currency
+			--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+			if subsCurrencyCode = 'USD' then
+				dw_adv.setitem(ll_row, 'balance'			, ld_adv_balance_usd		)
+				dw_adv.setitem(ll_row, 'newbalance'		, ld_adv_balance_usd		)
+			elseif subsCurrencyCode = 'PHP' then
+				dw_adv.setitem(ll_row, 'balance'			, ld_adv_balance			)
+				dw_adv.setitem(ll_row, 'newbalance'		, ld_adv_balance			)
+			end if
+			
+			dw_adv.setitem(ll_row, 'newrecord'		, 'Y'								)
+			dw_adv.setitem(ll_row, 'reftranno'		, ls_xoctranno					)
+			dw_adv.setitem(ll_row, 'trantypecode'	, ls_ocTranTypeCode			)
+			dw_adv.setitem(ll_row, 'sourceOcTypeCode'	, ls_refOcTypecode 		)
+			dw_adv.setitem(ll_row, 'sourceOcRefTranNo', ls_refOcTranNo			)
+			dw_adv.setitem(ll_row, 'sourceOcTranTypeCode', ls_ocTranTypeCode 	)
+			dw_adv.setitem(ll_row, 'currencyCode', ls_ocCurrencyCode 			)
+			dw_adv.setitem(ll_row, 'conversionRate', ld_ocConversionRate 		)
+			
+			if subsCurrencyCode = 'USD' then
+				dw_adv.setitem(ll_adv_row, 'appliedamt', ld_adv_appliedamt_usd + ld_adv_balance_usd)
+				dw_adv.setitem(ll_adv_row, 'newbalance', 0)
+			elseif subsCurrencyCode = 'PHP' then
+				dw_adv.setitem(ll_adv_row, 'appliedamt', ld_adv_appliedamt + ld_adv_balance)
+				dw_adv.setitem(ll_adv_row, 'newbalance', 0)
+			end if	
+		else
+			if subsCurrencyCode = 'USD' then
+				dw_adv.setitem(ll_adv_row, 'appliedamt', ld_adv_appliedamt_usd)
+				dw_adv.setitem(ll_adv_row, 'newbalance', ld_adv_balance_usd)
+			elseif subsCurrencyCode = 'PHP' then
+				dw_adv.setitem(ll_adv_row, 'appliedamt', ld_adv_appliedamt)
+				dw_adv.setitem(ll_adv_row, 'newbalance', ld_adv_balance)
+			end if	
+		end if
+		
+	next
+	
+	Return TRUE
+	
+	--END VALIDASI
+
+	if not uo_subs_advar.setOcTranNo() then
+		is_msgno = 'SM-0000001'
+		is_msgtrail = uo_subs_advar.lastSQLCode + "~r~n" + uo_subs_advar.lastSQLErrText
+		is_sugtrail = 'Error produced by uo_subs_advar.setOcTranNo()'
+		return -1
+	end IF
+	
+	--VALIDASI uo_subs_advar.setOcTranNo()
+	lastMethodAccessed = 'setOCTranNo'
+
+		if not guo_func.set_number('OPENCR', ocTranNo) then	
+			lastSQLCode = '-2'
+			lastSQLErrText = 'Could not set the next OC No.'
+			return FALSE
+		end IF
+		
+		--VALIDASI guo_func.set_number('OPENCR', ocTranNo)
+		update sysTransactionParam
+			set recordLocked = 'N',
+				 lockedUserName = '',
+				 lastTransactionNo = :al_tranno
+		where recordLocked = 'Y' 
+		       and divisionCode = :gs_divisionCode
+				and companyCode = :gs_companyCode
+				and tranTypeCode = :as_tranType
+				using SQLCA;
+		if SQLCA.sqlnrows < 1 then
+			guo_func.msgbox("SM-0000010", as_tranType 	+ "~r~n" + &
+								string(SQLCA.sqlcode) 	+ "~r~n" + &
+								SQLCA.sqlerrtext, "")
+			return false
+		elseif SQLCA.sqlcode <> 0 then
+			guo_func.msgbox("SM-0000001", "UPDATE - sysTransactionParam" + "~r~n" + &
+												  string(SQLCA.sqlcode) 	+ "~r~n" + &
+												  SQLCA.sqlerrtext, "Transaction Type: [" + as_tranType + "]")
+			return FALSE
+		end if
+		
+		commit using SQLCA;
+		
+		return TRUE
+		--END VALIDASI guo_func.set_number('OPENCR', ocTranNo)
+	
+	return TRUE
+	
+	---END VALIDASI
+
+	if not uo_subs_advar.postOpenCreditUpdates() then
+		is_msgno = 'SM-0000001'
+		is_msgtrail = uo_subs_advar.lastSQLCode + "~r~n" + uo_subs_advar.lastSQLErrText
+		is_sugtrail = 'Error produced by uo_subs_advar.postOpenCreditUpdates()'
+		return -1
+	end IF
+	
+	--VALIDASI uo_subs_advar.postOpenCreditUpdates()
+	
+	string		ls_octranno, ls_octypecode, ls_reftrantype, ls_sourceOcTypeCode, ls_sourceOcRefTranNo, ls_sourceOcTranTypeCode
+	string 		ls_debitAccount, ls_openCreditAccount
+	string		ls_reftranno, ls_reftrantypecode, ls_newrecord, ls_currencyCode, ls_refApplTranTypeCode, ls_refApplTranNo
+	decimal{2}	ld_balance, ld_appliedamt, ld_newbalance, ld_conversionRate
+	long			ll_records, ll_row, ll_octranno
+	datetime		ldt_serverDate
+	
+	decimal{30} ld_balance_usd, ld_appliedamt_usd, ld_newbalance_usd	//added codes for currency
+	
+	lastMethodAccessed = 'postOpenCreditUpdates'
+	
+	ldt_serverDate = guo_func.get_server_date()
+	
+	--=========================================================
+	--insert the new advances into ar open credit master if any,
+	--update existing advances at the same time.
+	--=========================================================
+	
+	f_displayStatus('Posting Open Credit Updates...')
+	
+	ll_records = dw_adv.rowcount()
+	for ll_row = 1 to ll_records
+		ls_octranno					= trim(dw_adv.getitemstring(ll_row, "tranno"						))
+		ls_octypecode 				= trim(dw_adv.getitemstring(ll_row, "octypecode"				))
+		ls_reftranno				= trim(dw_adv.getitemstring(ll_row, "reftranno"					))
+		ls_reftrantypecode		= trim(dw_adv.getitemstring(ll_row, "trantypecode"				))
+		ls_sourceOcTypeCode		= trim(dw_adv.getitemstring(ll_row, "sourceoctypecode"		))
+		ls_sourceOcRefTranNo		= trim(dw_adv.getitemstring(ll_row, "sourceocreftranno"		))
+		ls_sourceOcTranTypeCode	= trim(dw_adv.getitemstring(ll_row, "sourceoctrantypecode"	))
+		ls_refApplTranTypeCode  = trim(dw_adv.getitemstring(ll_row, "refApplTranTypeCode"	))
+		ls_refApplTranNo			= trim(dw_adv.getitemstring(ll_row, "refApplTranNo"			))
+		ls_newrecord 				= dw_adv.getitemstring(ll_row, "newrecord"						)
+		
+		--=======================================================
+		--
+		--insert GL Entry: Credit Applicant/Subscription Advances
+		--
+		-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		
+		if not f_getOCTypeGLAccount(ls_octypecode, ls_openCreditAccount, lastSQLErrText) then
+			return FALSE
+		end if
+	
+		--========================================================
+		--added codes for currency
+		--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		if subsCurrencyCode = 'USD' then
+			ld_balance_usd			= dw_adv.getitemdecimal(ll_row, "balance"		)
+			ld_balance = ld_balance_usd
+		elseif subsCurrencyCode = 'PHP' then
+			ld_balance				= dw_adv.getitemdecimal(ll_row, "balance"		)
+		end if
+		--========================================================
+		--end
+		--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		
+		ld_appliedamt				= dw_adv.getitemdecimal(ll_row, "appliedamt"	)
+		ld_newbalance				= dw_adv.getitemdecimal(ll_row, "newbalance"	)
+		ls_currencyCode			= trim(dw_adv.getItemString(ll_row, "currencycode"	))
+		ld_conversionRate			= dw_adv.getItemdecimal(ll_row, "conversionrate"	)
+		
+		if ls_newrecord = 'Y' or ls_newrecord = 'R' then
+										 //R is when OCADV becomes SUBSADV
+			f_displayStatus('Posting Open Credit Updates...(insert into arOpenCreditMaster)')
+			insert into arOpenCreditMaster (
+							tranno,   
+							trandate,   
+							acctNo,
+							amount,   
+							appliedamt,   
+							balance,   
+							octypeCode,   
+							reftranno,   
+							trantypecode,   
+							sourceOcTypeCode, 
+							sourceOcRefTranNo, 
+							sourceOcTranTypeCode,
+							useradd,   
+							dateadd,
+							currencyCode,
+							conversionRate,
+							refApplTranTypeCode,
+							refApplTranNo,
+							divisionCode,
+							companyCode)
+				  values (
+				  			:ls_octranno,   
+							:ldt_serverDate, 
+							:acctNo, 
+							:ld_balance,   
+							:ld_appliedamt,   
+							:ld_newbalance,   
+							:ls_octypecode,   
+							:ls_reftranno,   
+							:ls_reftrantypecode,  
+							:ls_sourceOcTypeCode, 
+							:ls_sourceOcRefTranNo, 
+							:ls_sourceOcTranTypeCode,
+							:gs_username,   
+							getdate(),
+							:ls_currencyCode,		//added codes
+							:ld_conversionRate,
+							:ls_refApplTranTypeCode,
+							:ls_refApplTranNo,
+							:gs_divisionCode,
+							:gs_companyCode)	//for currency
+					using SQLCA;
+			if SQLCA.sqlcode <> 0 then
+				lastSQLCode = string(SQLCA.sqlcode)
+				lastSQLErrText = SQLCA.sqlerrtext
+				return FALSE
+			end if
+			
+			f_displayStatus('Posting Open Credit Updates...(insertGLEntry)')
+			
+			--========================================================
+			--added codes for currency
+			--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+			if subsCurrencyCode = 'USD' then
+				ld_balance = ld_balance_usd * ld_conversionRate//conversionRate 8/23/2011-zar
+			elseif subsCurrencyCode = 'PHP' then
+				ld_balance = ld_balance * ld_conversionRate//conversionRate 8/23/2011-zar
+			end if
+			--========================================================
+			--end
+			--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+			
+			--==================================================
+			--NGLara | 03-17-2008
+			--Post GL Entry
+			--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+			if ls_newrecord = 'Y' then
+				iuo_glPoster.insertGLEntryCredit('SAV-POC-CR', '', ls_openCreditAccount, ld_balance, 'increase subscriber advances')
+			end if	
+			--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	
+		else
+			
+			--=======================================================
+			--Note: the process of debitting the open credit is in
+			--  		postApplicationOfOpenCredit
+			-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~		
+			f_displayStatus('Posting Open Credit Updates...(update arOpenCreditMaster)')
+			update arOpenCreditMaster
+				set appliedAmt = appliedAmt + :ld_appliedamt,
+					 balance = balance - :ld_appliedamt
+			 where tranNo = :ls_octranno
+			 and divisionCode = :gs_divisionCode
+			and companyCode = :gs_companyCode
+			using SQLCA;
+			if SQLCA.sqlcode <> 0 then
+				lastSQLCode = string(SQLCA.sqlcode)
+				lastSQLErrText = SQLCA.sqlerrtext
+				return FALSE
+			end if		
+			
+		end if
+	next
+	--================================
+	--end of insert / update ...
+	--================================
+	
+	return TRUE
+	
+	--END VALIDASI
+	
+	
+	if not uo_subs_advar.postArUpdates() then
+		is_msgno = 'SM-0000001'
+		is_msgtrail = uo_subs_advar.lastSQLCode + "~r~n" + uo_subs_advar.lastSQLErrText
+		is_sugtrail = 'Error produced by uo_subs_advar.postArUpdates()'
+		return -1
+	end IF
+	
+	--VALIDASI uo_subs_advar.postArUpdates()
+	dateTime ldt_tranDate(paramater)
+	return postARUpdates(ldt_tranDate)
+	
+	string		ls_newrecord, ls_artranno, ls_trantypecode, ls_artypecode, ls_remarks
+	string		ls_tranno, ls_sourceTable, ls_ripPaidOut
+	decimal{2}	ld_balance, ld_paidamt, ld_newbalance, ld_conversionRate
+	long			ll_records, ll_row, ll_artranno
+	integer		li_priority
+	boolean		lb_firsttime = TRUE
+	
+	datetime    ldtm_periodFrom, ldtm_periodTo, ldtm_trandate
+	
+	lastMethodAccessed = 'postARUpdates'
+	
+	f_displayStatus('Posting AR Updates...')
+	
+	ll_records = dw_ar.rowcount()
+	for ll_row = 1 to ll_records
+		
+		ls_tranno 			= dw_ar.getitemstring(ll_row, "tranno")
+		ls_trantypecode 	= trim(dw_ar.getitemstring(ll_row, "trantypecode"))
+		ls_artypecode 		= trim(dw_ar.getitemstring(ll_row, "artypecode"))	
+		ls_remarks 			= trim(dw_ar.getitemstring(ll_row, "remarks"))
+		ls_newrecord		= dw_ar.getitemstring(ll_row, "newrecord")
+		li_priority				= dw_ar.getitemnumber(ll_row, "artypecodepriority")
+		ld_balance			= dw_ar.getitemdecimal(ll_row, "balance")
+		ld_paidamt			= dw_ar.getitemdecimal(ll_row, "paidamt")
+		ld_newbalance		= dw_ar.getitemdecimal(ll_row, "newbalance")	
+		ls_sourceTable		= dw_ar.getitemstring(ll_row, "sourcetable")	
+		ldtm_periodFrom	= dw_ar.getItemDateTime(ll_row, "periodfrom")
+		ldtm_periodTo		= dw_ar.getItemDateTime(ll_row, "periodto")
+		ldtm_trandate		= dw_ar.getItemDateTime(ll_row, "trandate")
+		
+		ld_conversionRate = dw_ar.getitemdecimal(ll_row, "conversionrate") //zar 8/23/2011
+		
+		if ld_newbalance = 0 then
+			ls_ripPaidOut = 'Y'
+		else
+			ls_ripPaidOut = 'N'
+		end if
+		if isNull(ld_balance) 		then ld_balance = 0
+		if isNull(ld_paidamt) 		then ld_paidamt = 0
+		if isNull(ld_newbalance) 	then ld_newbalance = 0
+		if isNull(ls_newrecord) 	then ls_newrecord = 'N'
+	
+		if ls_newrecord = 'Y' then
+			f_displayStatus('Posting AR Updates... (insertIntoArTranHdr)')
+			
+			if isNull(ldtm_periodFrom) or string(ldtm_periodFrom, 'mm-dd-yyyy') = '01-01-1900' then
+			
+				if isNull(adt_trandate) or string(adt_trandate, 'mm-dd-yyyy') = '01-01-1900' then
+					if not insertIntoArTranHdr(ls_tranno, ls_trantypecode, ls_artypecode, li_priority, ld_balance, ld_paidamt, ld_newbalance, ls_remarks) then
+						return FALSE
+					end if
+				else
+					if not insertIntoArTranHdr(ls_tranno, ls_trantypecode, ls_artypecode, li_priority, ld_balance, ld_paidamt, ld_newbalance, ls_remarks, adt_tranDate) then
+						return FALSE
+					end if
+				end if
+				
+			else
+				
+				if not insertIntoArTranHdr(ls_tranno, ls_trantypecode, ls_artypecode, li_priority, ld_balance, ld_paidamt, ld_newbalance, ls_remarks, ldtm_trandate, ldtm_periodFrom, ldtm_periodTo) then
+					return FALSE
+				end if
+	
+			end if	
+		else	
+			f_displayStatus('Posting AR Updates... (update subsDepositReceivable)')
+			if ls_sourceTable = 'RIP' then
+				// ==================================================
+				// update RIP's as processed, so they won't appear 
+				// in collection entry again.
+				// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+				f_displayStatus('Posting AR Updates... (update subsInitialPayment)')
+				if ld_paidamt > 0 then
+					update subsInitialPayment
+						set processed = :ls_ripPaidOut,
+							 paidAmt = paidAmt + :ld_paidamt,
+							 balance = balance - :ld_paidamt
+					 where acctNo 		  = :acctNo
+						and divisionCode = :gs_divisionCode
+						and companyCode = :gs_companyCode
+						and tranNo 		  = :ls_tranNo
+						and tranTypeCode = :ls_tranTypecode
+						and arTypeCode   = :ls_arTypeCode
+						and processed = 'N'
+					 using SQLCA;
+					if SQLCA.sqlCode < 0 then
+						lastSQLCode 	= string(SQLCA.sqlCode)
+						lastSQLErrText	= SQLCA.sqlErrText
+						return FALSE
+					end if
+				end if
+			else			
+				--==================================================
+				--if it goes here, that means the source table of 
+				--the balance is AR
+				--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+				f_displayStatus('Posting AR Updates... (update arTranHdr)')
+				if ld_paidamt > 0 then
+					date ldt_datefullypaid
+					
+					if ld_newbalance = 0.00 or ld_newbalance = 0 then
+						select sysdate into :ldt_datefullypaid from dual using SQLCA;
+					else
+						setnull(ldt_datefullypaid)
+					end if
+					
+					update arTranHdr
+						set paidAmt = paidAmt + :ld_paidamt,
+							 balance = balance - :ld_paidamt,
+							 dateFullyPaid = :ldt_datefullypaid
+	
+					 where tranNo = :ls_tranno
+						and divisionCode = :gs_divisionCode
+						and companyCode = :gs_companyCode
+						and tranTypeCode = :ls_trantypecode
+						and arTypeCode = :ls_artypecode
+						and acctNo = :acctNo
+					 using SQLCA;
+					if SQLCA.sqlCode < 0 then
+						lastSQLCode 	= string(SQLCA.sqlCode)
+						lastSQLErrText	= SQLCA.sqlErrText
+						return FALSE
+					end if
+					
+					if subsCurrencyCode = 'USD' then
+						ld_paidamt = ld_paidamt * ld_conversionRate --//conversionRate 8/23/2011
+					elseif subsCurrencyCode = 'PHP' then
+						ld_paidamt = ld_paidamt * ld_conversionRate --//conversionRate 8/23/2011
+					end if
+					
+					string ls_arAccount
+					--=======================================================
+					--insert GL Entry: Credit AR
+					--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+					if not f_getArTypeARAccount(ls_artypecode, ls_arAccount, lastSQLErrText) then
+						return FALSE
+					end IF
+					
+					iuo_glPoster.insertGLEntryCredit('SAV-PARU-CR', '06-paid', ls_arAccount, ld_paidamt, 'decrease AR')
+					--=======================================================
+					--end
+					--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+					
+					string ls_unearnedAccount
+					--=======================================================
+					--insert GL Entry: Debit Unearned
+					--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+					
+					if not f_getArTypeUnearnedAccount(ls_artypecode, ls_unearnedAccount, lastSQLErrText) then
+						return FALSE
+					end IF
+					
+					iuo_glPoster.insertGLEntryDebit('SAV-PARU-CR', '07-paid', ls_unearnedAccount, ld_paidamt, 'decrease UNEARNED')
+					
+					--VALIDASI iuo_glPoster.insertGLEntryDebit
+					long ll_insertRow
+
+					if not initialized then
+						errorMessage = 'Cannot execute InsertGLEntry method for the GL Post Object is not yet initialized.'
+						suggestionRemarks = 'The Initialize method must be performed before calling any other methods.'
+						return False
+					end if
+					
+					ll_insertRow = dw_GLEntries.insertRow(0)
+					if isNull(as_sourceTranTypeCode) or as_sourceTranTypeCode = '' then
+						dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= tranTypeCode
+					else
+						dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= as_sourceTranTypeCode
+					end if
+					if isNull(as_sourceTranNo) or as_sourceTranNo = '' then
+						dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= tranNo
+					else
+						dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= as_sourceTranNo
+					end if
+					dw_GLEntries.object.glAccountCode[ll_insertRow] 		= as_glAccountCode
+					dw_GLEntries.object.debit[ll_insertRow] 				= ad_amount
+					dw_GLEntries.object.credit[ll_insertRow] 				= 0
+					dw_GLEntries.object.recordNo[ll_insertRow] 				= ll_insertRow
+					dw_GLEntries.object.remarks[ll_insertRow] 				= as_remarks
+					
+					return True
+
+					--END VALIDASI iuo_glPoster.insertGLEntryDebit
+					
+					--=======================================================
+					--end
+					-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+					
+					--=======================================================
+					-- NGLara | 04-05-2008
+					-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+					-- The revenue account for this AR TYPE will be debitted
+					-- in postApplicationOfOpenCredit event
+					-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~				
+	
+				end if
+			end if			 
+		end if
+	next
+	--================================
+	--end of insert / update ...
+	--================================
+	
+	return TRUE
+	
+	--END VALIDASI 
+
+	if not uo_subs_advar.postApplicationOfOpenCredit() then
+		is_msgno = 'SM-0000001'
+		is_msgtrail = uo_subs_advar.lastSQLCode + "~r~n" + uo_subs_advar.lastSQLErrText
+		is_sugtrail = 'Error produced by uo_subs_advar.postApplicationOfOpenCredit()'
+		return -1
+	end IF
+
+	---VALIDASI uo_subs_advar.postApplicationOfOpenCredit()
+	string		ls_glAccountCode
+	string		ls_applyoctranno, ldt_trandate, ls_acctno
+	string		ls_octranno, ls_octype, ls_tranno
+	string		ls_artranno, ls_trantypecode, ls_artypecode, ls_arremarks, ls_taxProfileCode
+	string		ls_currencyCode
+	decimal{2}	ld_conversionRate, ld_forexAmount
+	decimal{2}	ld_amount, ld_appliedamt, ld_payment, ld_vatAmt, ld_vatPercent
+	long			ll_hdr_records, ll_hdr_row, ll_dtl_records, ll_dtl_row, ll_recordnumber
+	long			ll_applyoctranno, ll_find_row, ll_dtl_recno
+	boolean		lb_firsttime = TRUE
+	
+	decimal{30} ld_appliedamt_usd, ld_payment_usd	//added codes for currency
+	
+	lastMethodAccessed = 'postApplicationOfOpenCredit'
+	
+	if not f_getSysParam_VAT(ld_vatPercent) then
+		lastSQLCode 	= string(SQLCA.sqlCode)
+		lastSQLErrText = SQLCA.sqlErrText
+		return FALSE
+	end if
+	
+	f_displayStatus('Posting Application of Open Credits...')
+
+	ll_hdr_records = dw_applofoc_hdr.rowcount()
+	for ll_hdr_row = 1 to ll_hdr_records
+	
+		ls_octranno			= dw_applofoc_hdr.getitemstring(ll_hdr_row, "refoctranno")
+		ls_octype			= dw_applofoc_hdr.getitemstring(ll_hdr_row, "refoctypecode")
+		ll_recordnumber 	= dw_applofoc_hdr.getitemnumber(ll_hdr_row, "recordnumber")
+		ld_amount			= dw_applofoc_hdr.getitemdecimal(ll_hdr_row, "ocamt")
+	
+		--========================================================
+		--added codes for currency
+		--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		if subsCurrencyCode = 'USD' then
+			ld_appliedamt_usd = dw_applofoc_hdr.getitemdecimal(ll_hdr_row, "appliedocamt")
+			ld_appliedamt = ld_appliedamt_usd
+		elseif subsCurrencyCode = 'PHP' then
+			ld_appliedamt		= dw_applofoc_hdr.getitemdecimal(ll_hdr_row, "appliedocamt")
+		end if
+		--========================================================
+		--end
+		--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		
+		ls_currencyCode	= dw_applofoc_hdr.getitemString(ll_hdr_row, "currencycode")		//added codes
+		ld_conversionRate	= dw_applofoc_hdr.getitemdecimal(ll_hdr_row, "conversionrate")	//for currency
+		
+		if lb_firsttime then
+			lb_firsttime = FALSE
+			if not guo_func.get_nextnumber("APPLYOC", ll_applyoctranno, "WITH LOCK") then
+				return FALSE
+			end if
+		else
+			ll_applyoctranno = ll_applyoctranno + 1
+		end if
+	
+		f_displayStatus('Posting Application of Open Credits (INSERT INTO arApplOfOcTranHdr)...')
+	
+		ls_applyoctranno = string(ll_applyoctranno, "00000000")
+		INSERT INTO arApplOfOcTranHdr  
+						( tranno,   
+						trandate,   
+						acctno,   
+						ocamt,   
+						appliedocamt,   
+						applicationoctype,   
+						refoctranno,   
+						refoctypeCode,
+						useradd,   
+						dateadd,
+						currencyCode,		//added codes
+						conversionRate,   //for currency
+						triggeredByTranNo,         //01/07/2009 -zar
+						triggeredByTranTypeCode,   //01/07/2009 -zar
+						divisionCode,
+						companyCode
+						)	
+			VALUES ( :ls_applyoctranno,   
+						getdate(),   
+						:acctNo,   
+						:ld_amount,   
+						:ld_appliedamt,   
+						'A',   
+						:ls_octranno,   
+						:ls_octype,   
+						:gs_username,   
+						getdate(),
+						:ls_currencyCode,		//added codes
+						:ld_conversionRate,  //for currency
+						:parentTranNo,             //01/07/2009 -zar
+						:parentTranTypeCode,       //01/07/2009 -zar 
+						:gs_divisionCode,
+						:gs_companyCode
+						)	
+				using SQLCA;
+				
+		if SQLCA.sqlcode <> 0 then
+			lastSQLCode = '-2'
+			lastSQLErrText = 'Insert error in arApplOfOcTranHdr' + '~r~n' + &
+								  string(SQLCA.sqlCode) + '~r~n' + &
+								  SQLCA.sqlErrText
+			return FALSE
+		end if
+		--========================================================
+		--added codes for currency
+		--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		if subsCurrencyCode = 'USD' then
+			ld_appliedamt = ld_appliedamt_usd * conversionRate
+		elseif subsCurrencyCode = 'PHP' then
+			ld_appliedamt = ld_appliedamt * conversionRate
+		end if
+		--========================================================
+		--end
+		--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	
+		string ls_openCreditAccount
+		--=======================================================
+		-- 		insert GL Entry: Debit Subscription Advances
+		-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		if not f_getOCTypeGLAccount(ls_octype, ls_openCreditAccount, lastSQLErrText) then
+			return FALSE
+		end IF
+		
+		--VALIDASI f_getOCTypeGLAccount(ls_octype, ls_openCreditAccount, lastSQLErrText)
+		
+		--==================================================
+		--NGLara | 08-08-2008
+		--First user of this function is the refund entry
+		--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		
+		if isnull(as_ocTypeCode) then
+			as_errorMsg = 'Null OC Type Code is invalid.'
+			return False
+		end if
+		
+		select glAccountCode
+		  into :as_glAccountCode
+		  from ocTypeMaster
+		 where ocTypeCode = :as_ocTypeCode
+		 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+		using SQLCA;
+		if SQLCA.sqlcode = 100 then
+			as_errorMsg = 'OC Type Code : [' + as_ocTypeCode + '] doest not exist.'
+			return False
+		elseif SQLCA.sqlcode < 0 then
+			as_errorMsg = string(SQLCA.sqlcode) + '~r~n' + SQLCA.sqlerrtext
+			return False
+		end if
+		
+		if isnull(as_glAccountCode) or trim(as_glAccountCode) = '' then
+			as_errorMsg = 'The GL Account obtained was empty or null. Check the OC Type Code : [' + as_ocTypeCode + '] in OC Type Maintenance'
+			return False
+		end if
+		
+		Return TRUE
+		
+		--END VALIDASI f_getOCTypeGLAccount(ls_octype, ls_openCreditAccount, lastSQLErrText)
+
+	
+		--zar -08/09/2010 --we do not Debit INCENTIVE because it is not 
+		--                  credited during collection
+		if trim(ls_octype) <> 'INCENTIV' THEN
+		
+			iuo_glPoster.insertGLEntryDebit('SAV-PAOC-DB', '05-paid', ls_openCreditAccount, ld_appliedamt, 'decrease subscriber advances')
+			
+			--VALIADASI iuo_glPoster.insertGLEntryDebit('SAV-PAOC-DB', '05-paid', ls_openCreditAccount, ld_appliedamt, 'decrease subscriber advances')
+			
+			long ll_insertRow
+
+			if not initialized then
+				errorMessage = 'Cannot execute InsertGLEntry method for the GL Post Object is not yet initialized.'
+				suggestionRemarks = 'The Initialize method must be performed before calling any other methods.'
+				return False
+			end if
+			
+			ll_insertRow = dw_GLEntries.insertRow(0)
+			if isNull(as_sourceTranTypeCode) or as_sourceTranTypeCode = '' then
+				dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= tranTypeCode
+			else
+				dw_GLEntries.object.sourceTranTypeCode[ll_insertRow] 	= as_sourceTranTypeCode
+			end if
+			if isNull(as_sourceTranNo) or as_sourceTranNo = '' then
+				dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= tranNo
+			else
+				dw_GLEntries.object.sourceTranNo[ll_insertRow] 	= as_sourceTranNo
+			end if
+			dw_GLEntries.object.glAccountCode[ll_insertRow] 		= as_glAccountCode
+			dw_GLEntries.object.debit[ll_insertRow] 					= 0
+			dw_GLEntries.object.credit[ll_insertRow] 					= ad_amount
+			dw_GLEntries.object.recordNo[ll_insertRow] 				= ll_insertRow
+			dw_GLEntries.object.remarks[ll_insertRow] 				= as_remarks
+			
+			return TRUE
+			
+			--END VALIDASI VALIADASI iuo_glPoster.insertGLEntryDebit('SAV-PAOC-DB', '05-paid', ls_openCreditAccount, ld_appliedamt, 'decrease subscriber advances')
+
+		end if	
+		
+		
+			
+		--=======================================================
+		-- 			end
+		--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		
+		f_displayStatus('Posting Application of Open Credits (insertGLEntry)...')
+	
+		ll_dtl_records = dw_applofoc_dtl.rowcount()
+		ll_find_row 	= dw_applofoc_dtl.find("recordnumber = " + string(ll_recordnumber), 1, ll_dtl_records)
+		if ll_find_row > 0 then
+			for ll_dtl_row = ll_find_row to ll_dtl_records
+				
+				ll_dtl_recno = dw_applofoc_dtl.getitemnumber(ll_dtl_row, "recordnumber")
+				if ll_dtl_recno = ll_recordnumber then
+					
+					ls_artranno 		= trim(dw_applofoc_dtl.getitemstring(ll_dtl_row, "documentno"))
+					ls_trantypecode 	= trim(dw_applofoc_dtl.getitemstring(ll_dtl_row, "trantypecode"))
+					ls_artypecode		= trim(dw_applofoc_dtl.getitemstring(ll_dtl_row, "artypecode"))
+	
+					//========================================================
+					//added codes for currency
+					//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+					if subsCurrencyCode = 'USD' then
+						ld_payment_usd	= dw_applofoc_dtl.getitemdecimal(ll_dtl_row, "appliedamt")
+						ld_payment = ld_payment_usd
+					elseif subsCurrencyCode = 'PHP' then
+						ld_payment		= dw_applofoc_dtl.getitemdecimal(ll_dtl_row, "appliedamt")
+					end if
+					//========================================================
+					//end
+					//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+					
+					ls_arremarks		= ""
+					ls_currencyCode	= dw_applofoc_dtl.getitemString(ll_dtl_row, "currencycode")		//added codes
+					ld_conversionRate	= dw_applofoc_dtl.getitemdecimal(ll_dtl_row, "conversionrate")	//for currency
+					ld_forexAmount		= dw_applofoc_dtl.getitemdecimal(ll_dtl_row, "forexamount")		//
+					
+					//RAY 08/27/2015
+					select taxProfileCode into :ls_taxProfileCode
+					from arAccountMaster
+					where acctno = :acctNo
+					and divisionCode = :gs_divisionCode
+					and companyCode = :gs_companyCode
+					using SQLCA;
+					
+					if ls_taxProfileCode = '001' then
+						if isNull(ld_vatPercent) or ld_vatPercent  = 0 then
+							ld_vatAmt = 0
+						else
+							ld_vatAmt = ld_payment * (1/ld_vatPercent)
+						end if
+					else
+						ld_vatAmt = 0		
+					end if				
+	
+					
+					dw_applofoc_dtl.SetItem(ll_dtl_row, "vatAmt", ld_vatAmt)
+	
+					f_displayStatus('Posting Application of Open Credits (INSERT INTO arApplOfOcTranDtl)...')
+					INSERT INTO arApplOfOcTranDtl
+									( tranno,   
+									documentNo,   
+									trantypecode,   
+									artypecode,   
+									appliedOCAmt,
+									remarks,
+									vatAmt,
+									userAdd,
+									dateAdd,
+									arCurrencyCode,	//added codes
+									arConversionRate,	//for currency
+									forexAmount,
+									divisionCode,
+									companyCode)		//
+						VALUES ( :ls_applyoctranno,   
+									:ls_artranno,   
+									:ls_trantypecode,   
+									:ls_artypecode,   
+									:ld_payment,
+									:ls_arremarks,
+									:ld_vatAmt,
+									:gs_username,
+									getdate(),
+									:ls_currencyCode,		//added codes
+									:ld_conversionRate,	//for currency
+									:ld_forexAmount,
+									:gs_divisionCode,
+									:gs_companyCode)		//
+					using SQLCA;
+					if SQLCA.sqlcode <> 0 then
+						lastSQLCode = '-2'
+						lastSQLErrText = 'Insert error in arApplOfOcTranHdr' + '~r~n' + &
+											  string(SQLCA.sqlCode) + '~r~n' + &
+											  SQLCA.sqlErrText
+						return FALSE
+					end if
+					
+					//touched - 03022010 - for leasing added verification for ADDEP|SCDEP
+					if ld_payment > 0 and (ls_artypecode <> 'OCDEP' and &
+					                       ls_artypecode <> 'OCDEQ' and &
+												  ls_arTypeCode <> 'ADDEP' and &     
+												  ls_arTypeCode <> 'SCDEP' ) then	 
+						string ls_revenueAccount
+						// =======================================================
+						// insert GL Entry: Credit Revenue
+						// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+						if not f_getArTypeRevAccount(ls_artypecode, ls_revenueAccount, lastSQLErrText) then
+							return FALSE
+						end if
+						
+						//--zar 08/09/2010 - If OCTYPE = INCENTIVE - no revenue must be realized
+						if trim(ls_octype) <> 'INCENTIV' then
+							iuo_glPoster.insertGLEntryCredit('SAV-PAOC-CR', '08-paid', ls_revenueAccount, ld_payment * conversionRate, 'increase revenue')
+						end if	
+						// =======================================================
+						// end
+						// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+					end if
+				else
+					exit
+				end if
+				
+			next
+		end if
+	
+	next
+	
+	if not lb_firsttime then
+		if not guo_func.set_number("APPLYOC", ll_applyoctranno) then
+			return FALSE
+		end if
+	end if
+	
+	return TRUE
+	
+	--END VALIDASI
 
 
 
 return 0
 -----END VALIDASI
+
 
 if not isNull(gb_authorizationNo) and gb_authorizationNo <> "" then
 
