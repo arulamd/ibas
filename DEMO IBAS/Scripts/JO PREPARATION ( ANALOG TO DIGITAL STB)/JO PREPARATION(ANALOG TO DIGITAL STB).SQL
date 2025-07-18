@@ -1,27 +1,64 @@
---CREATE JO BUTTON
+---FORM DATA WINDOW
+SELECT  vw_applications_for_jo.tranDate ,
+		  vw_applications_for_jo.tranTypeCode ,
+		  vw_applications_for_jo.tranNo ,
+		  vw_applications_for_jo.acctNo ,
+		  '' linemancode,
+		  '' jodate,
+		  arAcctSubscriber.subscribername,
+		  systransactionParam.tranTypeName,
+        vw_arAcctAddress.completeAddress
+FROM vw_applications_for_jo, arAcctSubscriber, systransactionParam, vw_arAcctAddress
+where (vw_applications_for_jo.acctNo = arAcctSubscriber.acctno)
+and (vw_applications_for_jo.tranTypeCode = systransactionParam.tranTypeCode) 
+and (vw_applications_for_jo.divisionCode = arAcctSubscriber.divisionCode)
+and (vw_applications_for_jo.companyCode = arAcctSubscriber.companyCode)
+and (vw_applications_for_jo.divisionCode = systransactionParam.divisionCode)
+and (vw_applications_for_jo.companyCode = systransactionParam.companyCode)
+and (vw_applications_for_jo.acctNo = vw_arAcctAddress.acctno)
+and (vw_applications_for_jo.divisionCode = vw_arAcctAddress.divisionCode)
+and (vw_applications_for_jo.companyCode = vw_arAcctAddress.companyCode)
+and (vw_arAcctAddress.addressTypeCode = 'SERVADR1')
+and (( vw_applications_for_jo.companyCode = :as_company)
+and ( vw_applications_for_jo.divisionCode = :as_division))
 
+--BUTTON NEW
+select groupcode 
+into :is_Groupcode
+from groupmembers 
+where usercode = :gs_usercode
+using SQLCA;
+
+dw_header.insertRow(0)
+
+pb_new.default = FALSE
+
+pb_new.enabled = FALSE
+pb_close.enabled = FALSE
+pb_cancel.enabled = TRUE
+pb_createjo.enabled = TRUE
+
+--BUTTON CREATE JO
 dw_header.SelectRow(dw_header.GetRow(), TRUE)
 
 parent.Event ue_createjo()
 
-dw_header.SelectRow(dw_header.GetRow(), FALSE)
-
---VALIDASI UE_CFREATEJO
-
-string ls_tranTypeCode, ls_tranNo, ls_acctNo, ls_referencejono
+--VALIDASI ue_createjo()
+string ls_tranTypeCode, ls_tranNo, ls_acctNo
 datetime ldt_joDate
+long ll_row
 
 ls_tranTypeCode 	= trim(dw_header.GetItemString(dw_header.GetRow(), 'tranTypeCode'))
 ls_tranNo			= trim(dw_header.GetItemString(dw_header.GetRow(), 'tranNo'))
 ls_acctNo			= trim(dw_header.GetItemString(dw_header.GetRow(), 'acctNo'))
 
-
 ls_acctNo = trim(ls_acctNo)
 if not iuo_subscriber.setAcctNo( ls_acctNo ) then
 	guo_func.msgbox("Warning!", iuo_subscriber.lastSQLCode + "~r~n" + iuo_subscriber.lastSQLErrText)
-end if
+end IF
 
---VALIDASI IUO_SUBSCRIBER.SETACCTNO
+--VALIDASI iuo_subscriber.setAcctNo( ls_acctNo )
+
 lastMethodAccessed = 'setAcctNo'
 
 acctNo = as_acctNo
@@ -475,48 +512,196 @@ and divisionCode = :gs_divisionCode
 and companyCode = :gs_companyCode
 using SQLCA;
 
-//~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-//prepaidSubscriber,
-//:prepaidSubscriber,
+--prepaidSubscriber,
+--:prepaidSubscriber,
 
 return TRUE
-----END VALIDASI 
 
-select referencejono into :ls_referencejono
-from arAcctSubscrbiber
-where acctNo = :ls_acctNo
-and divisionCode = :gs_divisionCOde
-and companyCode = :gs_companyCOde
-using SQLCA;
-
-if not isnull(ls_referencejono) and ls_tranTypeCode = 'APPLYML' then
-	guo_func.msgbox("Warning!", 'Account cannot proceed to jo preparation'+ "~r~n" + 'The account has already an APPLYML job order.')
-end if 
-
-//------------------------------------------------------------
-// validate policy on no of months a/r min requirement - start
-//------------------------------------------------------------		
-s_rip_override_policy = s_rip_override_policy_blank
-if not f_overrideRIPPolicyType(iuo_subscriber, s_rip_override_policy, ls_acctNo, ls_tranTypeCode, ls_tranNo) then
-	//trigger event ue_close()
-	return -1
-end if
-------------------------------------------------------------			
---validate policy on no of months a/r min requirement - end
-------------------------------------------------------------
+--END VALIDASI
 
 uf_get_preferredDateTime(ls_tranTypeCode, ls_tranNo, ldt_joDate)
+
+--VALIDASI uf_get_preferredDateTime(ls_tranTypeCode, ls_tranNo, ldt_joDate)
+
+if as_tranTypeCode = 'APPLYML' then
+	select preferreddatetimefrom
+	  into :adt_date
+	  from arAcctSubscriber
+	 where tranNo = :as_tranNo
+	 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+	using SQLCA;
+	
+	if isnull(adt_date) then 
+		adt_date = guo_func.get_server_date()
+	end if 
+	
+	if SQLCA.sqlcode <> 0 then
+		return FALSE
+	end if
+elseif as_tranTypeCode = 'APPLYEXT' then
+	select preferreddatetimefrom
+	  into :adt_date
+	  from applOfExtTranHdr
+	 where tranNo = :as_tranNo
+	 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+	using SQLCA;
+	if SQLCA.sqlcode <> 0 then
+		return FALSE
+	end if
+	
+elseif as_tranTypeCode = 'CONVD2F' then
+	select preferreddatetimefrom
+	  into :adt_date
+	  from conversiondoctofibtran
+	 where tranNo = :as_tranNo
+	 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+	using SQLCA;
+	if SQLCA.sqlcode <> 0 then
+		return FALSE
+	end if
+	
+elseif as_tranTypeCode = 'CONVD2DF' then
+	select preferreddatetimefrom
+	  into :adt_date
+	  from CONVERSIONDSLTODOCFIBTRAN
+	 where tranNo = :as_tranNo
+	 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+	using SQLCA;
+	if SQLCA.sqlcode <> 0 then
+		return FALSE
+	end if
+
+elseif as_tranTypeCode = 'APPLEXTHO' then
+	select preferreddatetimefrom
+	  into :adt_date
+	  from applOfExtHotelTranHdr
+	 where tranNo = :as_tranNo
+	 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+	using SQLCA;
+	if SQLCA.sqlcode <> 0 then
+		return FALSE
+	end if
+
+
+elseif as_tranTypeCode = 'SERVCALL' then
+	select scheduledDateTime
+	  into :adt_date
+	  from serviceCallTranHdr
+	 where tranNo = :as_tranNo
+	 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+	using SQLCA;
+	if SQLCA.sqlcode <> 0 then
+		return FALSE
+	end if	
+
+elseif as_tranTypeCode = 'APPLMLEXTREA' then
+	select preferreddatetimefrom
+	  into :adt_date
+	  from applOfReactivationTranHdr
+	 where tranNo = :as_tranNo
+	 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+	using SQLCA;
+	if SQLCA.sqlcode <> 0 then
+		return FALSE
+	end if	
+
+elseif as_tranTypeCode = 'APPLYTRANSFR' then
+	select preferreddatetimefrom
+	  into :adt_date
+	  from applOfTransferTranHdr
+	 where tranNo = :as_tranNo
+	 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+	using SQLCA;
+	if SQLCA.sqlcode <> 0 then
+		return FALSE
+	end if	
+
+elseif as_tranTypeCode = 'APPLYXTDSRVC' then
+	select preferreddatetimefrom
+	  into :adt_date
+	  from applExtendedServicesTranHdr
+	 where tranNo = :as_tranNo
+	 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+	using SQLCA;
+	if SQLCA.sqlcode <> 0 then
+		return FALSE
+	end if	
+
+elseif as_tranTypeCode = 'APPLYPD' then
+	select preferreddatetimefrom
+	  into :adt_date
+	  from applOfPermanentDiscTranHdr
+	 where tranNo = :as_tranNo
+	 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+	using SQLCA;
+	if SQLCA.sqlcode <> 0 then
+		return FALSE
+	end if	
+	
+elseif as_tranTypeCode = 'APPLYDEAC' then
+	select preferreddatetimefrom
+	  into :adt_date
+	  from applOfDeactivationTranHdr
+	 where tranNo = :as_tranNo
+	 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+	using SQLCA;
+	if SQLCA.sqlcode <> 0 then
+		return FALSE
+	end if	
+
+elseif as_tranTypeCode = 'APPLEXTD' then
+	select preferreddatetimefrom
+	  into :adt_date
+	  from applOfExtDiscTranHdr
+	 where tranNo = :as_tranNo
+	 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+	using SQLCA;
+	if SQLCA.sqlcode <> 0 then
+		return FALSE
+	end if	
+
+elseif as_tranTypeCode = 'REPANADIGI' then
+	select preferreddatetimefrom
+	  into :adt_date
+	  from AppOfDigitalConversionTranHdr
+	 where tranNo = :as_tranNo
+	 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+	using SQLCA;
+	if SQLCA.sqlcode <> 0 then
+		return FALSE
+	end if	
+
+end if
+
+return TRUE
+
+--END VALIDASI uf_get_preferredDateTime
 
 openwithparm(w_jo_assign_lineman_schedule, string(ldt_joDate, 'mm/dd/yyyy')) //, w_mdiframe, 1, original!)
 
 istr_jo = message.powerobjectparm
-
 if istr_jo.response = 'OK' then
 	pb_save.enabled = TRUE
 	pb_createjo.enabled = FALSE
-	dw_header.setitem(dw_header.GetRow(), "linemancode", istr_jo.linemancode)
-	dw_header.setitem(dw_header.GetRow(), "jodate", string(istr_jo.jodate, 'mmm. dd, yyyy'))
+	for ll_row = 1 to dw_header.getRow()
+		dw_header.setitem(ll_row, "linemancode", istr_jo.linemancode)
+		dw_header.setitem(ll_row, "jodate", string(today(), 'mmm. dd, yyyy'))
+	next 
 else
 	dw_header.setitem(dw_header.GetRow(), "linemancode", '')
 	dw_header.setitem(dw_header.GetRow(), "jodate", '')
@@ -524,20 +709,243 @@ end if
 
 return 0
 
---END VALIDASI 
+--END VALIDASI ue_createjo
 
---ls_acctNo			= trim(dw_header.GetItemString(dw_header.GetRow(), 'acctNo'))
---ls_tranNo			= trim(dw_header.GetItemString(dw_header.GetRow(), 'tranNo'))
--- SEELECT acctNo FROM   vw_applications_for_jo (ls_acctNo)
-
-select referencejono 
-from IBAS.ARACCTSUBSCRIBER
-where acctNo = :ls_acctNo
-and divisionCode = :gs_divisionCOde
-and companyCode = :gs_companyCOde
-using SQLCA;
+dw_header.SelectRow(dw_header.GetRow(), FALSE)
 
 
---validate policy on no of months a/r min requirement - start
+--SAVE BUTTON
 
+string		ls_joNo, ls_tranTypeCode, ls_acctNo, ls_lineManCode, ls_referenceNo, ls_joStatusCode, ls_trantype
+string		ls_sqlcode, ls_sqlerrtext, ls_refno, ls_specialInstructions, ls_batch, ls_tranNo, ls_serialNo
+datetime		ldt_joDate, ldt_preferredDatetimeFrom, ldt_preferredDatetimeTo
+long			ll_ans, ll_joNo, ll_tranNo, ll_row
+integer		li_noOfSTB
+
+ll_ans = guo_func.msgbox("AR-0000002")
+if ll_ans = 2 then
+	return -1
+end if
+	
+for ll_row = 1 to dw_header.rowcount() 
+	if not guo_func.get_nextnumber("JO", ll_joNo, "WITH LOCK") then
+		return -1
+	end IF
+	
+	--VALIDATION guo_func.get_nextnumber("JO", ll_joNo, "WITH LOCK")
+	
+	f_displayStatus("Retrieving next transaction # for " + as_trantype + "...")
+
+	string	ls_lockedby
+	
+	if as_tranType = 'SCSREQUEST' then
+		
+		update systransactionparam
+		set recordlocked = 'N',
+		lockedusername = ''
+		where tranTypeCode = :as_tranType 
+				and divisionCode = :gs_divisionCode
+				and companyCode = :gs_companyCode
+				and  recordlocked = 'Y'
+		using SQLCA;
+		
+	end if 
+	
+	select lockedUserName
+	  		into :ls_lockedby
+	from sysTransactionParam
+	 		where tranTypeCode = :as_tranType 
+	 		and divisionCode = :gs_divisionCode
+	 		and companyCode = :gs_companyCode
+	using SQLCA;
+	if SQLCA.sqlcode = 100 then
+		guo_func.msgbox("SM-0000010", as_tranType, "")
+		f_closeStatus()
+		return false
+	elseif SQLCA.sqlcode <> 0 then
+		guo_func.msgbox("SM-0000001", "Select error in sysTransactionParam" + "~r~n" + &
+											  string(SQLCA.sqlcode) 	+ "~r~n" + &
+											  SQLCA.sqlerrtext, "")
+		f_closeStatus()
+		return false
+	end if
+	
+	if as_getmode = "WITH LOCK" then
+		do while true
+			update sysTransactionParam
+				set recordLocked = 'Y',
+					 lockedUserName = :gs_username
+			   where recordLocked = 'N' 
+			   and tranTypeCode = :as_tranType
+			   and divisionCode = :gs_divisionCode
+	 		   and companyCode = :gs_companyCode		 
+			using SQLCA;
+			if SQLCA.sqlnrows < 1 then
+				if guo_func.msgbox("SM-0000011", ls_lockedby, "") = 2 then
+					f_closeStatus()
+					return false
+	 			end if
+			else
+				exit
+			end if
+		loop
+	end if
+	
+	select lastTransactionNo, tranYear
+	      into :al_tranNo, :ii_tranYear
+	from sysTransactionParam
+	      where tranTypeCode = :as_tranType
+	      and divisionCode = :gs_divisionCode
+	 		and companyCode = :gs_companyCode
+	using SQLCA;
+	if SQLCA.sqlcode = 100 then	// record not found
+		guo_func.msgbox("SM-0000010", as_tranType, "")
+		f_closeStatus()
+		return false
+	elseif SQLCA.sqlcode <> 0 then
+		guo_func.msgbox("SM-0000001", "Select error in sysTransactionParam" + "~r~n" + &
+											  string(SQLCA.sqlcode) 	+ "~r~n" + &
+											  SQLCA.sqlerrtext, "")
+		f_closeStatus()
+		return false
+	end if
+	
+	al_tranNo = al_tranNo + 1
+	f_closeStatus()
+	
+	return true
+	
+	--END VALIDATION guo_func.get_nextnumber
+	
+	ls_joNo 			= string(ll_joNo, "00000000")
+	ldt_joDate 			= datetime(today())
+	ls_tranTypeCode 	= trim(dw_header.getitemstring(ll_row, "trantypecode"))
+	ls_acctNo			= trim(dw_header.getitemstring(ll_row, "acctno"))
+	ls_lineManCode		= trim(istr_jo.linemancode)	
+	ls_joStatusCode 	= "FR"
+	ldt_preferreddatetimeto = datetime(RelativeDate(today(), 1))	
+	ls_specialInstructions = 'Replace Analog CPE to Digital CPE'
+	
+	insert into joTranHdr (
+					joNo,
+					joDate,
+					tranTypeCode,
+					acctNo,
+					lineManCode,
+					referenceNo,
+					joStatusCode,
+					preferredDatetimeFrom,
+					preferredDatetimeTo,
+					specialInstructions,
+					userAdd,
+					dateAdd,
+					divisionCode,
+					companyCode)
+		  values (
+					:ls_joNo,
+					:ldt_joDate,
+					'REPANADIGI',
+					:ls_acctNo,
+					:ls_lineManCode,
+					:ls_referenceNo,
+					:ls_joStatusCode,
+					getdate(),
+					:ldt_preferredDatetimeTo,
+					:ls_specialInstructions,
+					:gs_username,
+					getdate(),
+					:gs_divisionCode,
+					:gs_companyCode)
+			using SQLCA;
+	if SQLCA.sqlcode <> 0 then
+		is_msgno = "SM-0000001"
+		is_msgtrail = string(SQLCA.sqlcode) + "~r~n" + &
+						  SQLCA.sqlerrtext
+		is_sugtrail = ""
+		return -1
+	end if
+	
+	if not guo_func.set_number("JO", ll_joNo) then
+		return -1
+	end IF
+	
+	--VALIDASI guo_func.set_number("JO", ll_joNo)
+	
+	update sysTransactionParam
+	set recordLocked = 'N',
+		 lockedUserName = '',
+		 lastTransactionNo = :al_tranno
+		where recordLocked = 'Y' 
+		       and divisionCode = :gs_divisionCode
+				and companyCode = :gs_companyCode
+				and tranTypeCode = :as_tranType
+				using SQLCA;
+		if SQLCA.sqlnrows < 1 then
+			guo_func.msgbox("SM-0000010", as_tranType 	+ "~r~n" + &
+								string(SQLCA.sqlcode) 	+ "~r~n" + &
+								SQLCA.sqlerrtext, "")
+			return false
+		elseif SQLCA.sqlcode <> 0 then
+			guo_func.msgbox("SM-0000001", "UPDATE - sysTransactionParam" + "~r~n" + &
+												  string(SQLCA.sqlcode) 	+ "~r~n" + &
+												  SQLCA.sqlerrtext, "Transaction Type: [" + as_tranType + "]")
+			return FALSE
+		end if
+		
+		commit using SQLCA;
+		
+		return TRUE
+
+	--END VALIDASI guo_func.set_number("JO", ll_joNo)
+next
+
+is_msgno = "SM-0000002"
+
+return 0
+
+if ib_transactionWasSaved then
+	dw_header.reset()
+	
+	update overridePolicy
+	set refTranNo = :is_tranNo
+	where tranNo = :gb_authorizationNo
+	and divisionCode = :gs_divisionCode
+	and companyCode = :gs_companyCode
+	and requestStatus = 'AP'
+	using SQLCA;
+	
+	commit using SQLCA;
+	
+	pb_new.default = TRUE
+	pb_new.enabled = TRUE
+	pb_save.enabled = FALSE
+	pb_cancel.enabled = FALSE
+	pb_close.enabled = TRUE
+	pb_createjo.enabled = FALSE
+end IF
+
+
+---BUTTON CANCEL
+
+pb_createjo.enabled = FALSE
+
+if not ib_reqStatus and gb_authorizationNo <> "" and not isNull(gb_authorizationNo) then
+
+	update overridePolicy
+	set requestStatus = 'CN'
+	where tranNo = :gb_authorizationNo
+	and divisionCode = :gs_divisionCode
+	and companyCode = :gs_companyCode
+	and requestStatus = 'AP'
+	using SQLCA;
+	
+	commit using SQLCA;
+
+end if	
+
+--BUTTON ADD ITEM
+dw_header.insertrow(0)
+
+--BUTTON DELETE ITEM 
+dw_header.deleterow(dw_header.getrow())
 

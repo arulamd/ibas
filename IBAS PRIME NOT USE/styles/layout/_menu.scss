@@ -22,7 +22,8 @@
 
     .layout-root-menuitem {
         >.layout-menuitem-root-text {
-            font-size: .857rem;
+            //font-size: .857rem;
+            font-size: 1.2rem !important;
             text-transform: uppercase;
             font-weight: 700;
             color: var(--surface-900);
