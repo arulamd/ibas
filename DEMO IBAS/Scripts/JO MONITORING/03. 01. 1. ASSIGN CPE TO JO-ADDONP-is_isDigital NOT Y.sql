@@ -1,14 +1,246 @@
 --PROSES assign_cpe_to_jo
 
---lstr_jo.joNo 				= dw_jo.getitemstring(dw_jo.getrow(), "jono")
---lstr_jo.serviceType 	= dw_jo.getitemstring(dw_jo.getrow(), "servicetype")
---lstr_jo.isDigital		 	= dw_jo.getitemstring(dw_jo.getrow(), "isdigital")
---lstr_jo.tranTypeCode 	= dw_jo.getitemstring(dw_jo.getrow(), "tranTypeCode")
---lstr_jo.jostatuscode = dw_jo.getitemstring(dw_jo.getrow(), "jostatuscode")
+lstr_jo.joNo 				= dw_jo.getitemstring(dw_jo.getrow(), "jono")
+lstr_jo.serviceType 	= dw_jo.getitemstring(dw_jo.getrow(), "servicetype")
+lstr_jo.isDigital		 	= dw_jo.getitemstring(dw_jo.getrow(), "isdigital")
+lstr_jo.tranTypeCode 	= dw_jo.getitemstring(dw_jo.getrow(), "tranTypeCode")
+lstr_jo.jostatuscode = dw_jo.getitemstring(dw_jo.getrow(), "jostatuscode")
 
---if lstr_jo.tranTypeCode = 'ADDONP'  or lstr_jo.tranTypeCode = 'ADDOND' or lstr_jo.tranTypeCode = 'ADDONDI' or lstr_jo.tranTypeCode = 'HBDO' or lstr_jo.tranTypeCode = 'HBDI' then 
---openwithparm(w_assign_cpe_to_jo_add_on, lstr_jo)
---end if 
+if lstr_jo.tranTypeCode = 'ADDONP'  or lstr_jo.tranTypeCode = 'ADDOND' or lstr_jo.tranTypeCode = 'ADDONDI' or lstr_jo.tranTypeCode = 'HBDO' or lstr_jo.tranTypeCode = 'HBDI' then 
+openwithparm(w_assign_cpe_to_jo_add_on, lstr_jo)
+end if 
+
+--when open window pop up w_assiign_cpe_to_jo_add_on
+str_acctNo_joNo lstr_jo
+lstr_jo = message.powerObjectParm
+
+is_joNo 			      = lstr_jo.joNo
+is_serviceType 		= lstr_jo.serviceType
+is_isDigital			= lstr_jo.isDigital
+is_tranTypeCode	   = lstr_jo.tranTypeCode
+is_jostatuscode		= lstr_jo.jostatuscode
+
+string ls_objectname
+
+if is_serviceType = 'CTV' then
+	ls_objectname = "uo_stb"
+elseif is_serviceType = 'INET' then
+	ls_objectname = "uo_cm"
+end if
+iuo_cpe = CREATE USING ls_objectname
+
+this.triggerevent("ue_postopen")
+
+--validasi ue_postopen
+string 	ls_packageCode, ls_packageName, ls_isPrimary, ls_serialno
+long 	ll_noOfRequiredSTB, ll_qty
+integer	li_ctr, li_noOfReqSTB, li_loop
+string ls_jono		
+
+uo_ws luo_workstation
+if luo_workstation.setComputerName(gs_loginWorkStation) then
+	luo_workstation.getDefaultLocationCode(is_wsdeflocationCode)
+end if		
+
+--query dw_header
+SELECT  joTranHdr.joNo ,
+           joTranHdr.joDate ,
+           joTranHdr.tranTypeCode ,
+           joTranHdr.acctNo ,
+           joTranHdr.linemanCode ,
+           joTranHdr.referenceNo ,
+           joTranHdr.joStatusCode,
+			  '' subscribername ,
+	 arPackageMaster.packageName    
+        FROM joTranHdr      
+	inner join arAcctSubscriber  on joTranHdr.acctno = arAcctSubscriber.acctNo 
+		and joTranHdr.divisionCode = arAcctSubscriber.divisionCode and joTranHdr.companyCode = arAcctSubscriber.companyCode
+	inner join arPackageMaster  on arAcctSubscriber.packageCode = arPackageMaster.packageCode 
+		and arPackageMaster.divisionCode = arAcctSubscriber.divisionCode and arPackageMaster.companyCode = arAcctSubscriber.companyCode
+        WHERE ( joTranHdr.joNo = :as_jono ) and (joTranHdr.divisionCode = :as_division) and (joTranHdr.companyCode = :as_company)
+        
+-- end query dw header
+		
+dw_header.retrieve(is_joNo,gs_divisionCode, gs_companyCode)
+
+
+ls_jono = dw_header.getItemString(1,'jono')
+uo_subscriber_def luo_subscriber
+luo_subscriber = create uo_subscriber_def
+
+if not luo_subscriber.setacctno(dw_header.getitemstring(dw_header.getrow(),'acctno')) then
+	guo_func.msgbox("Warning",luo_subscriber.lastSqlCode+'~r~n'+luo_subscriber.lastSqlErrtext)
+	return
+end if
+
+dw_header.setitem(dw_header.getrow(),'subscribername',luo_subscriber.subscribername)
+
+if is_isDigital  = 'Y' then
+	dw_detail.dataObject = 'dw_assign_sbt_to_jo_dtl'
+else
+	dw_detail.dataObject = 'dw_assign_sbt_to_jo_dtl'
+end IF
+
+dw_detail.setTransObject(SQLCA);
+
+--query dw_detail
+  SELECT joTranDtlAssignedCPE.serialNo,   
+         joTranDtlAssignedCPE.itemCode,   
+         joTranDtlAssignedCPE.originalAssignedCPE,   
+         joTranDtlAssignedCPE.newSerialNo,   
+         joTranDtlAssignedCPE.newItemCode, 
+         serialNoMaster.controlNo, serialNoMaster.macAddress,  
+         'N' newRecord,   
+         joTranDtlAssignedCPE.acquisitionTypeCode,   
+         '' selected,
+         itemMaster.itemName,
+         ''newItemName,joTranDtlAssignedCPE.newMacAddress ,
+			joTranDtlAssignedCPE.lastassigneddate 
+    FROM joTranDtlAssignedCPE  
+   INNER JOIN serialNoMaster on joTranDtlAssignedCPE.serialNo = serialNoMaster.serialNo 
+   AND serialNoMaster.divisionCode = joTranDtlAssignedCPE.divisionCode
+   AND serialNoMaster.companyCode = joTranDtlAssignedCPE.companyCode
+   INNER JOIN itemMaster on joTranDtlAssignedCPE.itemCode = itemMaster.itemCode
+      AND itemMaster.companyCode = joTranDtlAssignedCPE.companyCode
+   WHERE ( joTranDtlAssignedCPE.joNo = :as_jono ) AND  
+         ( joTranDtlAssignedCPE.newItemCode is null )
+         AND ( joTranDtlAssignedCPE.divisionCode = :as_division ) 
+         AND ( joTranDtlAssignedCPE.companyCode = :as_company )
+         
+--end query dw_detail
+
+if dw_detail.retrieve(is_joNo, gs_divisionCode, gs_companyCode) > 0 then
+	ib_hasSTBAlready = TRUE	
+	if is_isDigital = 'Y' then
+		pb_new.enabled 		= FALSE
+		pb_save.enabled 		= TRUE
+		pb_cancel.enabled 	= TRUE
+		pb_close.enabled 		= TRUE
+		
+		is_msgNo = ''
+		is_msgTrail = ''
+		is_sugTrail = ''
+	else
+		pb_new.trigger event clicked()
+	end if
+else
+	
+	If is_tranTypeCode = 'ADDONDI' OR is_tranTypeCode = 'ADDOND' OR is_tranTypeCode = 'HBPO' OR is_tranTypeCode = 'HBDO' OR is_tranTypeCode = 'HBDI' OR is_tranTypeCode = 'ADDONP' then
+		string ls_itemcode, ls_itemname
+		declare cur_addon cursor for
+				select i.itemcode, i.itemname, a.serialno from sold_add_on_items a
+				inner join itemmaster i on i.itemcode = a.itemcode and i.companycode = a.companycode
+				where a.jono	= :ls_jono and a.acctNo = :luo_subscriber.acctNo
+				and a.divisionCode = :gs_divisionCode and a.companyCode = :gs_companyCode
+				using SQLCA;
+				open cur_addon;
+			if SQLCA.sqlcode < 0 then
+				guo_func.msgBox("ATTENTION", string(SQLCA.sqlcode)+ ' '+SQLCA.sqlerrtext)
+				return 
+			elseif SQLCA.sqlcode = 100 then
+				close cur_addon;	
+			else
+				fetch cur_addon into :ls_itemcode, :ls_itemname, :ls_serialno;
+				if SQLCA.sqlcode < 0 then
+					guo_func.msgBox("ATTENTION", string(SQLCA.sqlcode)+ ' '+SQLCA.sqlerrtext)
+					return 
+				end if
+				
+				do while SQLCA.sqlcode = 0
+					
+					dw_detail.scrollToRow(dw_detail.insertRow(0))
+					dw_detail.setItem(dw_detail.getRow(),'itemcode',ls_itemcode)
+					dw_detail.setItem(dw_detail.getRow(),'itemname',ls_itemname)
+					if not isnull(ls_serialno) then
+						dw_detail.setItem(dw_detail.getRow(),'serialno',ls_serialno)
+					end if
+					fetch cur_addon into :ls_itemcode, :ls_itemname, :ls_serialno;
+					if SQLCA.sqlcode < 0 then
+						guo_func.msgBox("ATTENTION", string(SQLCA.sqlcode)+ ' '+SQLCA.sqlerrtext)
+						return 
+					end if	
+				loop
+		
+				close cur_addon;
+			end if
+			
+			pb_new.enabled 		= FALSE
+		pb_save.enabled 		= TRUE
+		pb_cancel.enabled 	= TRUE
+		pb_close.enabled 		= TRUE
+	else
+		pb_new.trigger event clicked()
+	end if
+end IF
+
+--end eu_postevent
+
+--BUTTON NEW
+
+pb_new.enabled 		= FALSE
+pb_save.enabled 		= TRUE
+pb_cancel.enabled 	= TRUE
+pb_close.enabled 		= TRUE
+
+is_msgNo = ''
+is_msgTrail = ''
+is_sugTrail = ''
+
+uo_ws luo_workstation
+if luo_workstation.setComputerName(gs_loginWorkStation) THEN
+
+	--VALIDASI luo_workstation.setComputerName(gs_loginWorkStation)
+		select workStationCode, 
+				 workStationName, 
+				 computerName, 
+				 defaultLocationCode, 
+				 glAccountCode,
+				 workStationLocationCode,
+				 defSalesPPCAcctNo,
+				 forCCUse
+		  into :workStationCode, 
+				 :workStationName, 
+				 :computerName, 
+				 :defaultLocationCode, 
+				 :glAccountCode,
+				 :workStationLocationCode,
+				 :defSalesPPCAcctNo,
+				 :forCCUse
+		  from workStationMaster
+		where upper(computerName) = upper(:as_computerName)
+		using SQLCA;
+		if SQLCA.sqlCode = 100 then
+			lastSQLCode		= string(SQLCA.sqlCode)
+			lastSQLErrText	= 'Computer name [' + as_computerName + '] does not exist.'
+			return FALSE
+		elseif SQLCA.sqlCode < 0 then
+			lastSQLCode		= string(SQLCA.sqlCode)
+			lastSQLErrText	= SQLCA.sqlErrText
+			return FALSE
+		end if
+		
+		return TRUE
+
+	--END VALIDASI luo_workstation.setComputerName(gs_loginWorkStation)
+		
+	luo_workstation.getDefaultLocationCode(is_wsdeflocationCode)
+	
+	--validasi getDefaultLocationCode(is_wsdeflocationCode)
+		as_locationCode = trim(defaultLocationCode)
+		if isnull(as_locationCode) or as_locationCode = '' then
+			lastSQLCode		= '-2'
+			lastSQLErrText	= 'This workstation has not been assigned a default location.' + '~r~n' + &
+								  'You may ask your supervisor to assign one.'	
+			return FALSE
+		end if
+		return TRUE
+		
+	--end validasi getDefaultLocationCode(is_wsdeflocationCode)
+end if
+
+if ib_hasSTBAlready <> TRUE then
+	pb_add_line_item.triggerevent(Clicked!)
+end if
 
 
 --SAVE BUTTON

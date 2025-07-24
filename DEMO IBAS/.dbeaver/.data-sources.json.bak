@@ -74,6 +74,26 @@
 				},
 				"auth-model": "oracle_native"
 			}
+		},
+		"oracle_thin-1982fca75f1-58e5660854f71539": {
+			"provider": "oracle",
+			"driver": "oracle_thin",
+			"name": "ORCL",
+			"save-password": true,
+			"configuration": {
+				"host": "dbibasreplica.converge.myhsid.comlocalhost",
+				"port": "1521",
+				"database": "ORCL",
+				"url": "jdbc:oracle:thin:@//dbibasreplica.converge.myhsid.comlocalhost:1521/ORCL",
+				"configurationType": "MANUAL",
+				"type": "dev",
+				"closeIdleConnection": true,
+				"provider-properties": {
+					"@dbeaver-connection-type@": "BASIC",
+					"@dbeaver-sid-service@": "SERVICE"
+				},
+				"auth-model": "oracle_native"
+			}
 		}
 	},
 	"connection-types": {

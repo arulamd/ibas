@@ -74,6 +74,25 @@
 				},
 				"auth-model": "oracle_native"
 			}
+		},
+		"oracle_thin-1982fd571a6-3f8d13dae0bf61b8": {
+			"provider": "oracle",
+			"driver": "oracle_thin",
+			"name": "IBAS_CLONE_REPLICA",
+			"save-password": true,
+			"configuration": {
+				"database": "IBAS_CLONE_REPLICA",
+				"url": "jdbc:oracle:thin:@(DESCRIPTION \u003d (ADDRESS \u003d (PROTOCOL \u003d TCP)(HOST \u003d dbibasreplica.converge.myhsid.com)(PORT \u003d 1521)) (CONNECT_DATA \u003d (SERVER \u003d DEDICATED) (SERVICE_NAME \u003d ibas) ) )",
+				"configurationType": "MANUAL",
+				"type": "dev",
+				"closeIdleConnection": true,
+				"provider-properties": {
+					"@dbeaver-connection-type@": "TNS",
+					"@dbeaver-tns-path@": "",
+					"@dbeaver-sid-service@": "SERVICE"
+				},
+				"auth-model": "oracle_native"
+			}
 		}
 	},
 	"connection-types": {

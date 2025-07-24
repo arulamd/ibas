@@ -1,9 +1,11 @@
 --USER MASTER
 SELECT  *
-FROM usermaster  WHERE USERCODE ='ARUL';
+FROM usermaster  WHERE USERCODE IN('DENI','PARDO');
 
 s_user_code = i_dw.getitemstring(currentrow,'usercode')
 l_ret = i_dw_2.retrieve(s_user_code, gs_divisionCode)
+
+SELECT * FROM WORKSTATIONMASTER w WHERE w.WORKSTATIONCODE ='PAR'
 
 
 ----USER TYPE MASTER

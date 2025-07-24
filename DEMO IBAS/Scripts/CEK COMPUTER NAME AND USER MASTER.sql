@@ -5,7 +5,7 @@ select *
   
  select *	 
   from userMaster 
- where upper(userName) = upper('ARULAMD2')
+ where upper(userName) = upper('PARDO')
 
  
 SELECT  usermaster.usercode ,
@@ -24,7 +24,14 @@ FROM usermaster  ;
          userrightsmaster.divisionCode,
          userrightsmaster.companyCode     
 FROM userrightsmaster      
-WHERE ( userrightsmaster.usercode = :a_s_user_code ) and ( userrightsmaster.divisionCode = :as_division )   
+WHERE ( userrightsmaster.usercode = 'PARDO') and ( userrightsmaster.divisionCode = 'ACCTN')  AND userrightsmaster.COMPANYCODE = 'ACCTN'
 
+SELECT * FROM RIGHTSMASTER r WHERE MODULE IN('CS','JO') AND r.COMPANYCODE = 'ACCTN';
+
+ SELECT DISTINCT m.MODULECODE, m.MODULENAME
+                FROM IBAS.MODULEMASTER m
+                JOIN IBAS.RIGHTSMASTER r ON r.MODULE = m.MODULECODE
+                JOIN IBAS.USERRIGHTSMASTER ur ON ur.RIGHTSCODE = r.RIGHTSCODE     
+                WHERE ur.USERCODE = 'PARDO' AND ur.COMPANYCODE = 'ACCTN' AND ur.DIVISIONCODE = 'ACCTN' AND m.MODULECODE IN('CS','JO')
 
 select custom_hash('pardo') from dual

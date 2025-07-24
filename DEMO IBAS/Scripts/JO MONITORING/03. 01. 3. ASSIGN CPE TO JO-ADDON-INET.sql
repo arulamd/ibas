@@ -12,17 +12,17 @@
 
 
 --SAVE BUTTON
---lstr_jo.joNo 				= dw_jo.getitemstring(dw_jo.getrow(), "jono")
---lstr_jo.serviceType 	= dw_jo.getitemstring(dw_jo.getrow(), "servicetype")
---lstr_jo.isDigital		 	= dw_jo.getitemstring(dw_jo.getrow(), "isdigital")
---lstr_jo.tranTypeCode 	= dw_jo.getitemstring(dw_jo.getrow(), "tranTypeCode")
---lstr_jo.jostatuscode = dw_jo.getitemstring(dw_jo.getrow(), "jostatuscode")
+lstr_jo.joNo 				= dw_jo.getitemstring(dw_jo.getrow(), "jono")
+lstr_jo.serviceType 	= dw_jo.getitemstring(dw_jo.getrow(), "servicetype")
+lstr_jo.isDigital		 	= dw_jo.getitemstring(dw_jo.getrow(), "isdigital")
+lstr_jo.tranTypeCode 	= dw_jo.getitemstring(dw_jo.getrow(), "tranTypeCode")
+lstr_jo.jostatuscode = dw_jo.getitemstring(dw_jo.getrow(), "jostatuscode")
 
---is_joNo 			      = lstr_jo.joNo
---is_serviceType 		= lstr_jo.serviceType
---is_isDigital			= lstr_jo.isDigital
---is_tranTypeCode	   = lstr_jo.tranTypeCode
---is_jostatuscode		= lstr_jo.jostatuscode 
+is_joNo 			      = lstr_jo.joNo
+is_serviceType 		= lstr_jo.serviceType
+is_isDigital			= lstr_jo.isDigital
+is_tranTypeCode	   = lstr_jo.tranTypeCode
+is_jostatuscode		= lstr_jo.jostatuscode 
 
 --if is_serviceType = 'INET' then
 --ue_save_cm

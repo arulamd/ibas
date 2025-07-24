@@ -1,28 +1,406 @@
 --PROSES assign_cpe_to_jo
 
---lstr_jo.joNo 				= dw_jo.getitemstring(dw_jo.getrow(), "jono")
---lstr_jo.serviceType 	= dw_jo.getitemstring(dw_jo.getrow(), "servicetype")
---lstr_jo.isDigital		 	= dw_jo.getitemstring(dw_jo.getrow(), "isdigital")
---lstr_jo.tranTypeCode 	= dw_jo.getitemstring(dw_jo.getrow(), "tranTypeCode")
---lstr_jo.jostatuscode = dw_jo.getitemstring(dw_jo.getrow(), "jostatuscode")
+lstr_jo.joNo 				= dw_jo.getitemstring(dw_jo.getrow(), "jono")
+lstr_jo.serviceType 	= dw_jo.getitemstring(dw_jo.getrow(), "servicetype")
+lstr_jo.isDigital		 	= dw_jo.getitemstring(dw_jo.getrow(), "isdigital")
+lstr_jo.tranTypeCode 	= dw_jo.getitemstring(dw_jo.getrow(), "tranTypeCode")
+lstr_jo.jostatuscode = dw_jo.getitemstring(dw_jo.getrow(), "jostatuscode")
 
---if (lstr_jo.tranTypeCode = 'APPLYEXT' and lstr_jo.serviceType = 'INET' ) then
---	openwithparm(w_assign_cpe_to_jo_iptv, lstr_jo)
---end if 
+if (lstr_jo.tranTypeCode = 'APPLYEXT' and lstr_jo.serviceType = 'INET' ) then
+openwithparm(w_assign_cpe_to_jo_iptv, lstr_jo)
+end if 
+
+--QUERY DW HEAADER
+SELECT  joTranHdr.joNo ,
+           joTranHdr.joDate ,
+           joTranHdr.tranTypeCode ,
+           joTranHdr.acctNo ,
+           joTranHdr.linemanCode ,
+           joTranHdr.referenceNo ,
+           joTranHdr.joStatusCode,
+			  '' subscribername ,
+	 arPackageMaster.packageName    
+        FROM joTranHdr      
+	inner join arAcctSubscriber  on joTranHdr.acctno = arAcctSubscriber.acctNo 
+		and joTranHdr.divisionCode = arAcctSubscriber.divisionCode and joTranHdr.companyCode = arAcctSubscriber.companyCode
+	inner join arPackageMaster  on arAcctSubscriber.packageCode = arPackageMaster.packageCode 
+		and arPackageMaster.divisionCode = arAcctSubscriber.divisionCode and arPackageMaster.companyCode = arAcctSubscriber.companyCode
+        WHERE ( joTranHdr.joNo = :as_jono ) and (joTranHdr.divisionCode = :as_division) and (joTranHdr.companyCode = :as_company)  
+-- END QUERY DW HEAADER
+
+--QUERY DW_DETAIL
+  SELECT joTranDtlAssignedCPE.serialNo,   
+         joTranDtlAssignedCPE.itemCode,   
+         joTranDtlAssignedCPE.originalAssignedCPE,   
+         joTranDtlAssignedCPE.newSerialNo,   
+         joTranDtlAssignedCPE.newItemCode, 
+         serialNoMaster.controlNo, serialNoMaster.macAddress,  
+         'N' newRecord,   
+         joTranDtlAssignedCPE.acquisitionTypeCode,   
+         '' selected, 
+         joTranDtlAssignedCPE.isPrimary, 
+         itemMaster.itemName,
+         ''newItemName,
+	  joTranDtlAssignedCPE.newCAItemCode,
+	joTranDtlAssignedCPE.newCASerialNo,
+	arPackageMaster.packageName,
+	joTranDtlAssignedCPE.packageCode,
+	  joTranDtlAssignedCPE.caItemCode,joTranDtlAssignedCPE.newMacAddress,
+	joTranDtlAssignedCPE.caSerialNo, '' newCAItemName, i.itemname caItemName, 'N' isChecked,0 noOfrequiredSTB,
+	joTranDtlAssignedCPE.lastassigneddate
+    FROM joTranDtlAssignedCPE  
+   INNER JOIN serialNoMaster on joTranDtlAssignedCPE.serialNo = serialNoMaster.serialNo 
+   AND serialNoMaster.divisionCode = joTranDtlAssignedCPE.divisionCode
+   AND serialNoMaster.companyCode = joTranDtlAssignedCPE.companyCode
+   INNER JOIN itemMaster on joTranDtlAssignedCPE.itemCode = itemMaster.itemCode
+   AND  serialNoMaster.itemCode = itemMaster.itemCode
+   AND itemMaster.companyCode = joTranDtlAssignedCPE.companyCode
+   INNER JOIN serialNoMaster s on joTranDtlAssignedCPE.caserialNo = s.serialNo 
+   AND s.divisionCode = joTranDtlAssignedCPE.divisionCode
+   AND s.companyCode = joTranDtlAssignedCPE.companyCode
+   INNER JOIN itemMaster i on joTranDtlAssignedCPE.caitemCode = i.itemCode
+   AND  s.itemCode = i.itemCode
+   AND i.companyCode = joTranDtlAssignedCPE.companyCode
+    LEFT JOIN arPackageMaster on joTranDtlAssignedCPE.packageCode = arPackageMaster.packageCode 
+   AND arPackageMaster.divisionCode = joTranDtlAssignedCPE.divisionCode
+   AND arPackageMaster.companyCode = joTranDtlAssignedCPE.companyCode
+   WHERE ( joTranDtlAssignedCPE.joNo = :as_jono ) AND  
+         ( joTranDtlAssignedCPE.newItemCode is null  and  joTranDtlAssignedCPE.newCAItemCode is null   )
+         AND ( joTranDtlAssignedCPE.divisionCode = :as_division ) 
+         AND ( joTranDtlAssignedCPE.companyCode = :as_company )
+              
+
+--END QUERY
+
+--OPEN WINDOW POP UP
+
+str_acctNo_joNo lstr_jo
+lstr_jo = message.powerObjectParm
+
+is_joNo 			      = lstr_jo.joNo
+is_serviceType 		= lstr_jo.serviceType
+is_isDigital			= lstr_jo.isDigital
+is_tranTypeCode	   = lstr_jo.tranTypeCode
+is_jostatuscode		= lstr_jo.jostatuscode
+
+string ls_objectname
+
+if is_serviceType = 'CTV' then
+	ls_objectname = "uo_stb"
+elseif is_serviceType = 'INET' then
+	ls_objectname = "uo_cm"
+end if
+iuo_cpe = CREATE USING ls_objectname
+
+this.triggerevent("ue_postopen")
+
+--VALIDASI ue_postopen
+
+string 	ls_packageCode, ls_packageName, ls_isPrimary
+long 	ll_noOfRequiredSTB, ll_qty
+integer	li_ctr, li_noOfReqSTB, li_loop
+boolean hasPrimaryIPTV = False
+long ll_ctr_iptv_mainline
+
+string ls_acctNo
+
+
+uo_ws luo_workstation
+if luo_workstation.setComputerName(gs_loginWorkStation) then
+	luo_workstation.getDefaultLocationCode(is_wsdeflocationCode)
+end if		
+		
+dw_header.retrieve(is_joNo,gs_divisionCode, gs_companyCode)
+
+ls_acctNo = dw_header.getItemString(1,'acctNo')
+
+select count(*) into :ll_ctr_iptv_mainline
+from subscriberCpeMaster
+where acctNo = :ls_acctNo
+and divisionCode = :gs_divisionCode
+and companyCode = :gs_companyCode
+and cpetypeCOde = 'IPTV'
+and isprimary = 'Y'
+using SQLCA;
+
+if ll_ctr_iptv_mainline > 0 then
+	hasPrimaryIPTV = True
+end if
+
+
+uo_subscriber_def luo_subscriber
+luo_subscriber = create uo_subscriber_def
+
+if not luo_subscriber.setacctno(dw_header.getitemstring(dw_header.getrow(),'acctno')) then
+	guo_func.msgbox("Warning",luo_subscriber.lastSqlCode+'~r~n'+luo_subscriber.lastSqlErrtext)
+	return
+end if
+
+dw_header.setitem(dw_header.getrow(),'subscribername',luo_subscriber.subscribername)
+
+if is_isDigital  = 'Y' then
+	dw_detail.dataObject = 'dw_assign_cpe_digital_IPTV'
+else
+	dw_detail.dataObject = 'dw_assign_cpe_digital_IPTV'
+end if
+dw_detail.setTransObject(SQLCA);
+
+if dw_detail.retrieve(is_joNo, gs_divisionCode, gs_companyCode) > 0 then
+	ib_hasSTBAlready = TRUE	
+	if is_isDigital = 'Y' then
+		pb_new.enabled 		= FALSE
+		pb_save.enabled 		= TRUE
+		pb_cancel.enabled 	= TRUE
+		pb_close.enabled 		= TRUE
+		
+		is_msgNo = ''
+		is_msgTrail = ''
+		is_sugTrail = ''
+	else
+		pb_new.trigger event clicked()
+	end if
+else
+	if is_isDigital = 'N' then
+		if is_tranTypeCode = 'APPLYML' then
+			select b.packageCode, c.packageName
+			into :ls_packageCode, :ls_packageName
+			from arAcctSubscriber b
+			inner join arPackageMaster c on b.packageCode = c.packageCode
+				 and c.divisionCode = b.divisionCode and c.companyCode = b.companyCode
+			where b.referenceJONo = :is_joNo
+			and b.divisionCode = :gs_divisionCode and b.companyCode = :gs_companyCode
+			using SQLCA;
+			if SQLCA.sqlcode < 0 then
+				guo_func.msgBox("ATTENTION", string(SQLCA.sqlcode)+ ' '+SQLCA.sqlerrtext)
+				return 
+			end if			
+			
+			select noOfRequiredSTB into :li_noOfReqSTB 
+			from   arAcctSubscriber 
+			where  acctNo = :luo_subscriber.acctNo
+		   and    divisionCode = :gs_divisionCode 
+			and    companyCode  = :gs_companyCode
+			using  SQLCA;
+			if SQLCA.sqlcode < 0 then
+				guo_func.msgBox("ATTENTION", string(SQLCA.sqlcode)+ ' '+SQLCA.sqlerrtext)
+				return 
+			end if
+			
+			if li_noOfReqSTB= 0 then li_noOfReqSTB	= 1						
+			if isnull(li_noOfReqSTB) then li_noOfReqSTB	= 1						
+			
+			for li_loop = 1 to li_noOfReqSTB				
+				dw_detail.scrollToRow(dw_detail.insertRow(0))
+				dw_detail.setItem(dw_detail.getRow(),'packageCode',ls_packageCode)
+				dw_detail.setItem(dw_detail.getRow(),'packageName',ls_packageName)
+				dw_detail.setItem(dw_detail.getRow(),'isprimary','Y')				
+			next	
+				
+		elseIf is_tranTypeCode = 'APPLEXTHO' then
+			
+			declare cur_CPE_hotel cursor for
+				select a.packageCode, c.packageName, a.noOfRequiredSTB, b.qty
+				from applOfExtHotelTranhdr a
+				inner join applOfExtHotelTrandtl b on a.tranNo = b.tranNo
+					 and a.divisionCode = b.divisionCode and a.companyCode = b.companyCode
+				inner join arPackageMaster c on a.packageCode = c.packageCode
+					 and c.divisionCode = b.divisionCode and c.companyCode = b.companyCode
+				where a.referenceJONo = :is_joNo
+				and a.divisionCode = :gs_divisionCode and a.companyCode = :gs_companyCode
+				 using SQLCA;
+			open cur_CPE_hotel;
+			if SQLCA.sqlcode < 0 then
+				guo_func.msgBox("ATTENTION", string(SQLCA.sqlcode)+ ' '+SQLCA.sqlerrtext)
+				return 
+			end if
+			
+			fetch cur_CPE_hotel into :ls_packageCode, :ls_packageName, :ll_noOfRequiredSTB, :ll_qty;
+			if SQLCA.sqlcode < 0 then
+				guo_func.msgBox("ATTENTION", string(SQLCA.sqlcode)+ ' '+SQLCA.sqlerrtext)
+				return 
+			end if
+			
+			do while SQLCA.sqlcode = 0
+				for li_ctr = 1 to ll_qty
+					dw_detail.scrollToRow(dw_detail.insertRow(0))
+					dw_detail.setItem(dw_detail.getRow(),'packageCode',ls_packageCode)
+					dw_detail.setItem(dw_detail.getRow(),'packageName',ls_packageName)
+					dw_detail.setItem(dw_detail.getRow(),'noOfRequiredSTB',ll_noOfRequiredSTB)
+				next
+				fetch cur_CPE_hotel into :ls_packageCode, :ls_packageName, :ll_noOfRequiredSTB, :ll_qty;
+				if SQLCA.sqlcode < 0 then
+					guo_func.msgBox("ATTENTION", string(SQLCA.sqlcode)+ ' '+SQLCA.sqlerrtext)
+					return 
+				end if	
+			loop
+	
+			close cur_CPE_hotel;
+		
+	elseif is_trantypecode = 'APPLYEXT' and is_servicetype = 'INET' then
+		
+		string ls_itemcode, ls_itemname, ls_serialno
+		declare cur_addon cursor for
+				select i.itemcode, i.itemname, a.serialno from sold_add_on_items a
+				inner join itemmaster i on i.itemcode = a.itemcode and i.companycode = a.companycode
+				where a.jono	= :is_jono and a.acctNo = :luo_subscriber.acctNo
+				and a.divisionCode = :gs_divisionCode and a.companyCode = :gs_companyCode
+				using SQLCA;
+				open cur_addon;
+			if SQLCA.sqlcode < 0 then
+				guo_func.msgBox("ATTENTION", string(SQLCA.sqlcode)+ ' '+SQLCA.sqlerrtext)
+				return 
+			elseif SQLCA.sqlcode = 100 then
+				close cur_addon;	
+			else
+				fetch cur_addon into :ls_itemcode, :ls_itemname, :ls_serialno;
+				if SQLCA.sqlcode < 0 then
+					guo_func.msgBox("ATTENTION", string(SQLCA.sqlcode)+ ' '+SQLCA.sqlerrtext)
+					return 
+				end if
+				
+				do while SQLCA.sqlcode = 0
+					
+					dw_detail.scrollToRow(dw_detail.insertRow(0))
+					dw_detail.setItem(dw_detail.getRow(),'itemcode',ls_itemcode)
+					dw_detail.setItem(dw_detail.getRow(),'itemname',ls_itemname)
+					if not isnull(ls_serialno) then
+						dw_detail.setItem(dw_detail.getRow(),'serialno',ls_serialno)
+					end if
+					fetch cur_addon into :ls_itemcode, :ls_itemname, :ls_serialno;
+					if SQLCA.sqlcode < 0 then
+						guo_func.msgBox("ATTENTION", string(SQLCA.sqlcode)+ ' '+SQLCA.sqlerrtext)
+						return 
+					end if	
+				loop
+		
+				close cur_addon;
+			end if
+			
+			pb_new.enabled 		= FALSE
+		pb_save.enabled 		= TRUE
+		pb_cancel.enabled 	= TRUE
+		pb_close.enabled 		= TRUE
+		
+		elseIf is_tranTypeCode = 'APPLMLEXTREA' then
+			
+			s_appldeacinfo str_appldeacinfo
+			if not luo_subscriber.getApplDeacInfo(str_appldeacinfo) then
+				guo_func.msgBox("ATTENTION",  luo_subscriber.lastSQLCode + '~r~n' + luo_subscriber.lastSQLErrText + &
+								  '~r~n Method Name : luo_subscriber.getApplDeacInfo()')
+				return
+			end if
+			
+			declare cur_reac cursor for
+				select b.packageCode, c.packageName, b.isPrimary
+				from applOfDeactivationTranHdr a
+				inner join deactivationTranHdr d on a.referenceJoNo = d.jobOrderNo
+					 and a.acctNo = d.acctNo
+					 and a.divisionCode = d.divisionCode and a.companyCode = d.companyCode
+				inner join deactivationTranDtl b on d.tranNo = b.tranNo
+					 and d.divisionCode = b.divisionCode and d.companyCode = b.companyCode
+				inner join arPackageMaster c on b.packageCode = c.packageCode
+					 and c.divisionCode = b.divisionCode and c.companyCode = b.companyCode
+				where a.referenceJONo = :str_appldeacinfo.joNo and a.acctNo = :luo_subscriber.acctNo
+				and a.divisionCode = :gs_divisionCode and a.companyCode = :gs_companyCode
+				
+				union all
+				
+				select b.packageCode, c.packageName, b.isPrimary
+				from applOfDeactivationTranHdr a
+				inner join deactivationTranHdr d on a.tranDate = d.tranDate
+					 and a.acctNo = d.acctNo
+					 and a.divisionCode = d.divisionCode and a.companyCode = d.companyCode
+				inner join deactivationTranDtl b on d.tranNo = b.tranNo
+					 and d.divisionCode = b.divisionCode and d.companyCode = b.companyCode
+				inner join arPackageMaster c on b.packageCode = c.packageCode
+					 and c.divisionCode = b.divisionCode and c.companyCode = b.companyCode
+				where a.referenceJONo = :str_appldeacinfo.joNo  and d.jobOrderNo = '00000000' and a.acctNo = :luo_subscriber.acctNo
+				and a.divisionCode = :gs_divisionCode and a.companyCode = :gs_companyCode
+				
+				using SQLCA;
+			open cur_reac;
+			if SQLCA.sqlcode < 0 then
+				guo_func.msgBox("ATTENTION", string(SQLCA.sqlcode)+ ' '+SQLCA.sqlerrtext)
+				return 
+			elseif SQLCA.sqlcode = 100 then
+				close cur_reac;	
+			else
+				fetch cur_reac into :ls_packageCode, :ls_packageName, :ls_isPrimary;
+				if SQLCA.sqlcode < 0 then
+					guo_func.msgBox("ATTENTION", string(SQLCA.sqlcode)+ ' '+SQLCA.sqlerrtext)
+					return 
+				end if
+				
+				do while SQLCA.sqlcode = 0
+					
+					dw_detail.scrollToRow(dw_detail.insertRow(0))
+					dw_detail.setItem(dw_detail.getRow(),'packageCode',ls_packageCode)
+					dw_detail.setItem(dw_detail.getRow(),'packageName',ls_packageName)
+					dw_detail.setItem(dw_detail.getRow(),'isPrimary',ls_isPrimary)
+				
+					fetch cur_reac into :ls_packageCode, :ls_packageName, :ls_isPrimary;
+					if SQLCA.sqlcode < 0 then
+						guo_func.msgBox("ATTENTION", string(SQLCA.sqlcode)+ ' '+SQLCA.sqlerrtext)
+						return 
+					end if	
+				loop
+		
+				close cur_reac;	
+			end if
+			
+		end if	
+		pb_new.enabled 		= FALSE
+		pb_save.enabled 		= TRUE
+		pb_cancel.enabled 	= TRUE
+		pb_close.enabled 		= TRUE
+		
+		is_msgNo = ''
+		is_msgTrail = ''
+		is_sugTrail = ''
+	else
+		pb_new.trigger event clicked()
+	end if
+end if
+
+--END VALIDASI ue_postopen
+
+--BUTTON NEW
+
+pb_new.enabled 		= FALSE
+pb_save.enabled 		= TRUE
+pb_cancel.enabled 	= TRUE
+pb_close.enabled 		= TRUE
+
+is_msgNo = ''
+is_msgTrail = ''
+is_sugTrail = ''
+
+pb_add_line_item.enabled = TRUE
+pb_delete_line_item.enabled = TRUE
+
+
+uo_ws luo_workstation
+if luo_workstation.setComputerName(gs_loginWorkStation) then
+	luo_workstation.getDefaultLocationCode(is_wsdeflocationCode)
+end if
+
+if ib_hasSTBAlready <> TRUE then
+	pb_add_line_item.triggerevent(Clicked!)
+end if
 
 
 --SAVE BUTTON
---lstr_jo.joNo 				= dw_jo.getitemstring(dw_jo.getrow(), "jono")
---lstr_jo.serviceType 	= dw_jo.getitemstring(dw_jo.getrow(), "servicetype")
---lstr_jo.isDigital		 	= dw_jo.getitemstring(dw_jo.getrow(), "isdigital")
---lstr_jo.tranTypeCode 	= dw_jo.getitemstring(dw_jo.getrow(), "tranTypeCode")
---lstr_jo.jostatuscode = dw_jo.getitemstring(dw_jo.getrow(), "jostatuscode")
+lstr_jo.joNo 				= dw_jo.getitemstring(dw_jo.getrow(), "jono")
+lstr_jo.serviceType 	= dw_jo.getitemstring(dw_jo.getrow(), "servicetype")
+lstr_jo.isDigital		 	= dw_jo.getitemstring(dw_jo.getrow(), "isdigital")
+lstr_jo.tranTypeCode 	= dw_jo.getitemstring(dw_jo.getrow(), "tranTypeCode")
+lstr_jo.jostatuscode = dw_jo.getitemstring(dw_jo.getrow(), "jostatuscode")
 
---is_joNo 			      = lstr_jo.joNo
---is_serviceType 		= lstr_jo.serviceType
---is_isDigital			= lstr_jo.isDigital
---is_tranTypeCode	   = lstr_jo.tranTypeCode
---is_jostatuscode		= lstr_jo.jostatuscode 
+is_joNo 			      = lstr_jo.joNo
+is_serviceType 		= lstr_jo.serviceType
+is_isDigital			= lstr_jo.isDigital
+is_tranTypeCode	   = lstr_jo.tranTypeCode
+is_jostatuscode		= lstr_jo.jostatuscode 
 
 --is_serviceType = 'CTV' and is_isDigital <> 'Y'  then
 --ue_save
