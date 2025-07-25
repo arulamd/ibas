@@ -14,4 +14,60 @@ SET PASSWORD = (select custom_hash('???') FROM dual)
 WHERE USERNAME = '????'
 
 
-SELECT * FROM AGENTMASTER a 
+SELECT * FROM AGENTMASTER a WHERE a.AGENTCODE ='AGT001'
+
+
+SELECT  collectiontranhdr.tranno ,
+		  collectiontranhdr.trandate ,
+		  collectiontranhdr.acctno ,
+		  collectiontranhdr.documenttypecode ,
+		  collectiontranhdr.receiptno ,
+		  collectiontranhdr.refnotype ,
+		  collectiontranhdr.refno ,
+		  collectiontranhdr.checkno ,
+		  collectiontranhdr.checkdate ,
+		  collectiontranhdr.checkstatuscode ,
+		  collectiontranhdr.bankCode ,
+
+		  collectiontranhdr.amount ,
+
+		  collectiontranhdr.acctCurrencyCode,
+		  collectiontranhdr.acctConversionRate,
+
+		  collectiontranhdr.tranCurrencyCode,
+		  collectiontranhdr.tranConversionRate,
+
+		  collectiontranhdr.acctBasedAmount,
+
+		  collectiontranhdr.collectorcode ,
+		  ''collectorName,
+		  collectiontranhdr.tranTypeCode,
+		  collectiontranhdr.paymenttypecode ,
+		  collectiontranhdr.paymentstatus ,
+		  collectiontranhdr.workstationcode ,
+		  collectiontranhdr.workStationLocationCode ,
+		  collectiontranhdr.useradd ,
+		  collectiontranhdr.dateadd ,
+		 collectiontranhdr.card_payment_type ,
+		collectiontranhdr.auth_code ,
+	     '' acctName,
+		  '' acctAddress,
+			'' subscriberStatusName,
+        0.000000000000000000000000 c_remaining,
+		  0.00 originalAmountTendered,
+		  0.00 collectorFee	,
+		collectiontranhdr.remarks,
+		'' telNo,
+		'' contactNo,
+		'' mobileNo,
+		getDate() dateInstalled,
+		getDate() lastInfoUpdate
+   FROM collectiontranhdr
+  WHERE 1=2	
+  
+  select *  
+  from currencyMaster
+ where currencyCode = :as_currencyCode
+ 
+ 
+ SELECT * FROM SYSTRANSACTIONPARAM s 

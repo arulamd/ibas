@@ -31,6 +31,11 @@ wf_enabledisable_buttons("save, undo")		// the user has to save or undo the chan
          IBAS.AGENTTYPEMASTER.AGENTTYPENAME  
     FROM IBAS.AGENTTYPEMASTER   
 ----
+    
+--SEARCH QUERYTEAMLEADERCODE 
+select teamleadercode , teamleadername from teamleadermaster
+where divisioncode = :as_division and companycode = :as_company
+
 
 ib_add_edit = TRUE	// may be use in ue_validate event
 ib_addingediting = TRUE
