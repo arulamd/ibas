@@ -11,12 +11,52 @@ SELECT  collectormaster.collectorcode ,
     where collectorMaster.companyCode = :as_company and
 			collectorMaster.divisioncode = :as_division
 			
---SEARCH COLLECTOR TYPE TO KEY IN DATA IN FORM	
-
-SELECT  collectormaster.collectorname ,           
-collectormaster.collectorcode     
-FROM collectormaster    
-WHERE collectorMaster.companyCode = :as_company and collectorMaster.divisionCode = :as_division
+	--SEARCH COLLECTOR TYPE TO KEY IN DATA IN FORM	
+	
+	string ls_collectortypeName, ls_collectortypeCode
+	long ll_row
+	
+	str_search str_s
+	ll_row = dw_1.getrow()
+	
+	if as_search = "collectortype" then
+	
+		str_s.s_dataobject = "dw_search_collectortype"
+		str_s.s_return_column = "collectortypecode"
+		str_s.s_title = "Search For Customer Type"
+		
+		--QUERY SEARCH COLLECTOR TYPE
+		 SELECT  collectorTypeMaster.collectorTypeName ,
+		 collectorTypeMaster.collectorTypeCode
+		 FROM collectorTypeMaster   
+		 
+		
+		openwithparm(w_search_ancestor,str_s)
+	
+		ls_collectortypecode	= trim(message.stringparm)  
+	
+		if ls_collectortypecode <> '' then
+	
+			select collectortypename
+			into :ls_collectortypeName
+			from collectorTypeMaster
+			where collectortypecode = :ls_collectortypecode
+			using SQLCA;
+	
+			if SQLCA.SQLCode = 100 then
+				guo_func.msgbox("IC-0000003")
+			elseif SQLCA.sqlcode < 0 then
+				guo_func.msgbox("IC-0000002")
+			else
+				
+				dw_1.setitem(ll_row,'collectorTypeCode', ls_collectortypecode)
+			
+			end if
+		end if
+		
+	end if	
+	
+	return 0
 
 --BUTTON ADD
 dw_1.object.b_type.visible = true

@@ -832,17 +832,223 @@ for ll_ctr = 1 to dw_1.rowCount()
 										if not	luo_ipcomm.getsubscribername(as_acctno,ls_subscribername, ls_subscriberstatuscode) then
 											as_errormsg = as_errormsg + '~r~n~r~n' + 'Warning: ' + string(SQLCA.sqlcode) + '~r~n' + SQLCA.sqlerrtext
 											return FALSE
-										end if
+										end IF
+										
+										--validasi luo_ipcomm.getsubscribername
+										string ls_packagecode,ls_ubrType
+											int li_nodeNo
+											
+											select translate(subscribername, '[0-9]#$&:&!_()/@\"','[0-9]') , subscriberstatuscode
+											into :as_subscribername, :as_subscriberstatuscode
+											from arAcctSubscriber
+											where acctNo = :as_acctNo 
+											and companyCode = :gs_companyCode
+											and divisionCode = :gs_divisionCode
+											using SQLCA;
+											if SQLCA.sqlcode < 0 then
+												lastSQLCode = string(SQLCA.sqlcode)
+												lastSQLErrText = SQLCA.sqlerrtext
+												return FALSE
+											elseif SQLCA.sqlcode = 100 then
+												lastSQLCode = string(SQLCA.sqlcode) 
+												lastSQLErrText = "Cannot get subscribername from table [ARACCTSUBSCRIBER] "
+												return FALSE
+											end if
+											
+											
+											return TRUE
+										
+										--end validasi luo_ipcomm.getsubscribername
 										
 										if not	luo_ipcomm.getpackagecode(as_acctno,ls_packagecode) then
 											as_errormsg = as_errormsg + '~r~n~r~n' + 'Warning: ' + string(SQLCA.sqlcode) + '~r~n' + SQLCA.sqlerrtext
 											return FALSE
-										end if
+										end IF
+										
+										--validasi luo_ipcomm.getpackagecode
+										
+										select packageCode 
+											into :as_packageCode
+											from arAcctSubscriber
+											where acctNo = :as_acctno
+											and companycode = :gs_companycode
+											and divisioncode = :gs_divisioncode
+											using SQLCA;
+											
+											if SQLCA.sqlcode < 0 then
+												lastSQLCode = string(SQLCA.sqlcode)
+												lastSQLErrText = SQLCA.sqlerrtext
+												return FALSE
+											elseif SQLCA.sqlcode = 100 then
+												lastSQLCode = string(SQLCA.sqlcode) 
+												lastSQLErrText = "Cannot get packagecode "
+												return TRUE
+											end if
+											
+											return TRUE
+											
+										--end validasi luo_ipcomm.getpackagecode
 										
 										if not	luo_ipcomm.getclientclassnamenew(ls_packagecode,ls_clientclassvalue,as_acctno, ls_approachtype) then
 											as_errormsg = as_errormsg + '~r~n~r~n' + 'Warning: ' + string(SQLCA.sqlcode) + '~r~n' + SQLCA.sqlerrtext
 											return FALSE
 										end if 
+										
+										--validasi getclientclassnamenew
+										
+										
+											string ls_packagecode,ls_ubrType , ls_docsistype , LS_PACKAGETYPECODE , ls_approachtype , ls_reqnap, ls_reqnode , ls_packagedesc , ls_oltcode , ls_cocode
+											int li_nodeNo
+											string ls_itemcode
+											string ls_nodebased
+											 
+											select packagecode,nodeNo 
+											into :ls_packagecode,:li_nodeNo
+											from arAcctSubscriber
+											where acctNo = :as_acctNo 
+											and companyCode = :gs_companyCode
+											and divisionCode = :gs_divisionCode
+											using SQLCA;
+											
+											if SQLCA.sqlcode < 0 then
+												lastSQLCode = string(SQLCA.sqlcode)
+												lastSQLErrText = SQLCA.sqlerrtext
+												return FALSE
+											elseif SQLCA.sqlcode = 100 then
+												lastSQLCode = string(SQLCA.sqlcode) 
+												lastSQLErrText = "Cannot get packagecode "
+												return FALSE
+											end if
+											
+											select ubrType , docsistype
+											into :ls_ubrType, :ls_docsistype
+											from nodesInIpCommander
+											where nodeNo = :li_nodeNo
+											and companyCode = :gs_companyCode
+											and divisionCode = :gs_divisionCode
+											using SQLCA;
+											
+											if SQLCA.sqlcode < 0 then
+												lastSQLCode = string(SQLCA.sqlcode)
+												lastSQLErrText = SQLCA.sqlerrtext
+												return FALSE
+											
+											end if
+											
+											SELECT PACKAGETYPECODE, isnodereq, isnapreq , node_based INTO :LS_PACKAGETYPECODE , :ls_reqnode , :ls_reqnap , :ls_nodebased
+											FROM ARPACKAGEMASTER
+											WHERE PACKAGECOdE = :AS_PACKAGECODE
+											and divisioncode = :gs_divisioncode
+											and companycode = :gs_companycode
+											using SQLCA;
+											if SQLCA.sqlcode < 0 then
+												lastSQLCode = string(SQLCA.sqlcode)
+												lastSQLErrText = SQLCA.sqlerrtext
+												return FALSE
+											elseif SQLCA.sqlcode = 100 then
+												lastSQLCode = string(SQLCA.sqlcode) 
+												lastSQLErrText = "CANNOT GET PACKAGETYPECODE FOR THIS PACKAGE "
+												return FALSE
+											end if
+											
+											
+											select a.itemcode into :ls_itemcode from serialnomaster a
+											inner join itemmaster b on b.itemcode = a.itemcode and b.companycode = a.companycode
+											where a.acctno = :as_acctno
+											and a.divisioncode = :gs_divisioncode
+											and a.companycode = :gs_companycode
+											and (b.itemiscablemodem = 'Y')
+											
+											using SQLCA;
+											
+											
+											string ls_devicemodel
+											
+											
+											select appr_type into :as_approach from itemmaster
+											where itemcode = :ls_itemcode
+											and companyCOde = :gs_companycode
+											using SQLCA;
+											
+											
+											
+											
+											
+												
+												if as_approach = 'TR-069' and ls_packagetypecode = 'GEP' then
+												
+												select cocode , oltcode into :ls_cocode,  :ls_oltcode from aracctsubscriber
+												where acctno = :as_acctno 
+												and divisioncode = :gs_divisioncode 
+												and companycode = :gs_companycode
+												using SQLCA;
+												
+												select plan_name into :ls_packagedesc
+												from arpackagemaster
+												where packagecode = :as_packagecode
+												and divisioncode = :gs_divisioncode
+												and companycode = :gs_companycode
+												using SQLCA;
+												
+												
+												as_clientclassname = trim(ls_oltcode + '-' + ls_packagedesc)
+												return true
+												
+												end if
+												
+												IF as_approach = 'DOCSIS' and ls_packagetypecode = 'GEP' then
+													
+												select clientclassvalue into :as_clientclassname
+												from arpackagemaster
+												where packagecode = :as_packagecode
+												and divisioncode = :gs_divisioncode
+												and companycode = :gs_companycode
+												using SQLCA;
+												
+												return true
+												
+												end if
+												
+												IF as_approach = 'DOCSIS' then
+											
+												if ls_nodebased = 'Y' then
+												
+												select SUBSTR(clientclassvalue,3,20) into :as_clientclassname
+												from arpackagemaster
+												where packagecode = :as_packagecode
+												and divisioncode = :gs_divisioncode
+												and companycode = :gs_companycode
+												using SQLCA;
+												
+												if SQLCA.sqlcode < 0 then
+													lastSQLCode = string(SQLCA.sqlcode)
+													lastSQLErrText = SQLCA.sqlerrtext
+													return FALSE
+												elseif SQLCA.sqlcode = 100 then
+													lastSQLCode = string(SQLCA.sqlcode) 
+													lastSQLErrText = "Cannot get ClientClassValue for this Package "
+													return FALSE
+												end if
+												
+												as_approach = 'DOCSIS'
+												as_clientclassname =TRIM( ls_docsistype + as_clientclassname)
+												return true
+												
+												else 
+												
+												select clientclassvalue into :as_clientclassname
+												from arpackagemaster
+												where packagecode = :as_packagecode
+												and divisioncode = :gs_divisioncode
+												and companycode = :gs_companycode
+												using SQLCA;
+												
+												return true
+													
+												end if
+											
+											end if 
+										--end validasi 
 										
 										select itemcode into :ls_itemcode
 										from serialnomaster
@@ -951,7 +1157,92 @@ for ll_ctr = 1 to dw_1.rowCount()
 									
 									if not guo_func.get_nextNumber('BCCREQUESTNO',ll_reqno,'WITH LOCK') then 
 										return FALSE
-									end if	
+									end IF
+									
+									-VALIDASI GET NEXT NUMBER
+														
+												f_displayStatus("Retrieving next transaction # for " + as_trantype + "...")
+
+													string	ls_lockedby
+													
+													if as_tranType = 'SCSREQUEST' then
+														
+														update systransactionparam
+														set recordlocked = 'N',
+														lockedusername = ''
+														where tranTypeCode = :as_tranType 
+																and divisionCode = :gs_divisionCode
+																and companyCode = :gs_companyCode
+																and  recordlocked = 'Y'
+														using SQLCA;
+														
+													end if 
+													
+													select lockedUserName
+													  		into :ls_lockedby
+													from sysTransactionParam
+													 		where tranTypeCode = :as_tranType 
+													 		and divisionCode = :gs_divisionCode
+													 		and companyCode = :gs_companyCode
+													using SQLCA;
+													if SQLCA.sqlcode = 100 then
+														guo_func.msgbox("SM-0000010", as_tranType, "")
+														f_closeStatus()
+														return false
+													elseif SQLCA.sqlcode <> 0 then
+														guo_func.msgbox("SM-0000001", "Select error in sysTransactionParam" + "~r~n" + &
+																							  string(SQLCA.sqlcode) 	+ "~r~n" + &
+																							  SQLCA.sqlerrtext, "")
+														f_closeStatus()
+														return false
+													end if
+													
+													if as_getmode = "WITH LOCK" then
+														do while true
+															update sysTransactionParam
+																set recordLocked = 'Y',
+																	 lockedUserName = :gs_username
+															   where recordLocked = 'N' 
+															   and tranTypeCode = :as_tranType
+															   and divisionCode = :gs_divisionCode
+													 		   and companyCode = :gs_companyCode		 
+															using SQLCA;
+															if SQLCA.sqlnrows < 1 then
+																if guo_func.msgbox("SM-0000011", ls_lockedby, "") = 2 then
+																	f_closeStatus()
+																	return false
+													 			end if
+															else
+																exit
+															end if
+														loop
+													end if
+													
+													select lastTransactionNo, tranYear
+													      into :al_tranNo, :ii_tranYear
+													from sysTransactionParam
+													      where tranTypeCode = :as_tranType
+													      and divisionCode = :gs_divisionCode
+													 		and companyCode = :gs_companyCode
+													using SQLCA;
+													if SQLCA.sqlcode = 100 then	// record not found
+														guo_func.msgbox("SM-0000010", as_tranType, "")
+														f_closeStatus()
+														return false
+													elseif SQLCA.sqlcode <> 0 then
+														guo_func.msgbox("SM-0000001", "Select error in sysTransactionParam" + "~r~n" + &
+																							  string(SQLCA.sqlcode) 	+ "~r~n" + &
+																							  SQLCA.sqlerrtext, "")
+														f_closeStatus()
+														return false
+													end if
+													
+													al_tranNo = al_tranNo + 1
+													f_closeStatus()
+													
+													return TRUE
+													
+												--END VALIDASI
 									
 									ls_reqno = ls_year + ls_month + string(ll_reqno,'00000000')  
 									
@@ -970,7 +1261,36 @@ for ll_ctr = 1 to dw_1.rowCount()
 							
 									if not guo_func.set_Number('BCCREQUESTNO',ll_reqno) then
 										return FALSE
-									end if			
+									end if	
+									
+									--VALIDASI SET NUMBER
+														
+											update sysTransactionParam
+												set recordLocked = 'N',
+													 lockedUserName = '',
+													 lastTransactionNo = :al_tranno
+											where recordLocked = 'Y' 
+											       and divisionCode = :gs_divisionCode
+													and companyCode = :gs_companyCode
+													and tranTypeCode = :as_tranType
+													using SQLCA;
+											if SQLCA.sqlnrows < 1 then
+												guo_func.msgbox("SM-0000010", as_tranType 	+ "~r~n" + &
+																	string(SQLCA.sqlcode) 	+ "~r~n" + &
+																	SQLCA.sqlerrtext, "")
+												return false
+											elseif SQLCA.sqlcode <> 0 then
+												guo_func.msgbox("SM-0000001", "UPDATE - sysTransactionParam" + "~r~n" + &
+																					  string(SQLCA.sqlcode) 	+ "~r~n" + &
+																					  SQLCA.sqlerrtext, "Transaction Type: [" + as_tranType + "]")
+												return FALSE
+											end if
+											
+											commit using SQLCA;
+											
+											return TRUE
+											
+										--END VALIDASI
 									
 									commit using SQLCA;
 									
@@ -978,7 +1298,92 @@ for ll_ctr = 1 to dw_1.rowCount()
 										
 									if not guo_func.get_nextNumber('BCCREQUESTNO',ll_reqno,'WITH LOCK') then 
 										return FALSE
-									end if	
+									end IF
+									
+									--VALIDASI GET NEXT NUMBER
+														
+												f_displayStatus("Retrieving next transaction # for " + as_trantype + "...")
+
+													string	ls_lockedby
+													
+													if as_tranType = 'SCSREQUEST' then
+														
+														update systransactionparam
+														set recordlocked = 'N',
+														lockedusername = ''
+														where tranTypeCode = :as_tranType 
+																and divisionCode = :gs_divisionCode
+																and companyCode = :gs_companyCode
+																and  recordlocked = 'Y'
+														using SQLCA;
+														
+													end if 
+													
+													select lockedUserName
+													  		into :ls_lockedby
+													from sysTransactionParam
+													 		where tranTypeCode = :as_tranType 
+													 		and divisionCode = :gs_divisionCode
+													 		and companyCode = :gs_companyCode
+													using SQLCA;
+													if SQLCA.sqlcode = 100 then
+														guo_func.msgbox("SM-0000010", as_tranType, "")
+														f_closeStatus()
+														return false
+													elseif SQLCA.sqlcode <> 0 then
+														guo_func.msgbox("SM-0000001", "Select error in sysTransactionParam" + "~r~n" + &
+																							  string(SQLCA.sqlcode) 	+ "~r~n" + &
+																							  SQLCA.sqlerrtext, "")
+														f_closeStatus()
+														return false
+													end if
+													
+													if as_getmode = "WITH LOCK" then
+														do while true
+															update sysTransactionParam
+																set recordLocked = 'Y',
+																	 lockedUserName = :gs_username
+															   where recordLocked = 'N' 
+															   and tranTypeCode = :as_tranType
+															   and divisionCode = :gs_divisionCode
+													 		   and companyCode = :gs_companyCode		 
+															using SQLCA;
+															if SQLCA.sqlnrows < 1 then
+																if guo_func.msgbox("SM-0000011", ls_lockedby, "") = 2 then
+																	f_closeStatus()
+																	return false
+													 			end if
+															else
+																exit
+															end if
+														loop
+													end if
+													
+													select lastTransactionNo, tranYear
+													      into :al_tranNo, :ii_tranYear
+													from sysTransactionParam
+													      where tranTypeCode = :as_tranType
+													      and divisionCode = :gs_divisionCode
+													 		and companyCode = :gs_companyCode
+													using SQLCA;
+													if SQLCA.sqlcode = 100 then	// record not found
+														guo_func.msgbox("SM-0000010", as_tranType, "")
+														f_closeStatus()
+														return false
+													elseif SQLCA.sqlcode <> 0 then
+														guo_func.msgbox("SM-0000001", "Select error in sysTransactionParam" + "~r~n" + &
+																							  string(SQLCA.sqlcode) 	+ "~r~n" + &
+																							  SQLCA.sqlerrtext, "")
+														f_closeStatus()
+														return false
+													end if
+													
+													al_tranNo = al_tranNo + 1
+													f_closeStatus()
+													
+													return TRUE
+													
+												--END VALIDASI
 									
 									IF TRIM(AS_INSERTTYPE) = 'DEACTIVATE' THEN
 									
@@ -1020,12 +1425,126 @@ for ll_ctr = 1 to dw_1.rowCount()
 										if not guo_func.set_Number('BCCREQUESTNO',ll_reqno) then
 											return FALSE
 										end if	
+										
+										--VALIDASI SET NUMBER
+														
+											update sysTransactionParam
+												set recordLocked = 'N',
+													 lockedUserName = '',
+													 lastTransactionNo = :al_tranno
+											where recordLocked = 'Y' 
+											       and divisionCode = :gs_divisionCode
+													and companyCode = :gs_companyCode
+													and tranTypeCode = :as_tranType
+													using SQLCA;
+											if SQLCA.sqlnrows < 1 then
+												guo_func.msgbox("SM-0000010", as_tranType 	+ "~r~n" + &
+																	string(SQLCA.sqlcode) 	+ "~r~n" + &
+																	SQLCA.sqlerrtext, "")
+												return false
+											elseif SQLCA.sqlcode <> 0 then
+												guo_func.msgbox("SM-0000001", "UPDATE - sysTransactionParam" + "~r~n" + &
+																					  string(SQLCA.sqlcode) 	+ "~r~n" + &
+																					  SQLCA.sqlerrtext, "Transaction Type: [" + as_tranType + "]")
+												return FALSE
+											end if
+											
+											commit using SQLCA;
+											
+											return TRUE
+											
+										--END VALIDASI
 									END IF
 								elseif  trim(as_reftrantypecode) = 'REACTIVATE' then
 									
 									if not guo_func.get_nextNumber('BCCREQUESTNO',ll_reqno,'WITH LOCK') then 
 										return FALSE
 									end if	
+									
+									--VALIDASI GET NEXT NUMBER
+														
+											f_displayStatus("Retrieving next transaction # for " + as_trantype + "...")
+
+												string	ls_lockedby
+												
+												if as_tranType = 'SCSREQUEST' then
+													
+													update systransactionparam
+													set recordlocked = 'N',
+													lockedusername = ''
+													where tranTypeCode = :as_tranType 
+															and divisionCode = :gs_divisionCode
+															and companyCode = :gs_companyCode
+															and  recordlocked = 'Y'
+													using SQLCA;
+													
+												end if 
+												
+												select lockedUserName
+												  		into :ls_lockedby
+												from sysTransactionParam
+												 		where tranTypeCode = :as_tranType 
+												 		and divisionCode = :gs_divisionCode
+												 		and companyCode = :gs_companyCode
+												using SQLCA;
+												if SQLCA.sqlcode = 100 then
+													guo_func.msgbox("SM-0000010", as_tranType, "")
+													f_closeStatus()
+													return false
+												elseif SQLCA.sqlcode <> 0 then
+													guo_func.msgbox("SM-0000001", "Select error in sysTransactionParam" + "~r~n" + &
+																						  string(SQLCA.sqlcode) 	+ "~r~n" + &
+																						  SQLCA.sqlerrtext, "")
+													f_closeStatus()
+													return false
+												end if
+												
+												if as_getmode = "WITH LOCK" then
+													do while true
+														update sysTransactionParam
+															set recordLocked = 'Y',
+																 lockedUserName = :gs_username
+														   where recordLocked = 'N' 
+														   and tranTypeCode = :as_tranType
+														   and divisionCode = :gs_divisionCode
+												 		   and companyCode = :gs_companyCode		 
+														using SQLCA;
+														if SQLCA.sqlnrows < 1 then
+															if guo_func.msgbox("SM-0000011", ls_lockedby, "") = 2 then
+																f_closeStatus()
+																return false
+												 			end if
+														else
+															exit
+														end if
+													loop
+												end if
+												
+												select lastTransactionNo, tranYear
+												      into :al_tranNo, :ii_tranYear
+												from sysTransactionParam
+												      where tranTypeCode = :as_tranType
+												      and divisionCode = :gs_divisionCode
+												 		and companyCode = :gs_companyCode
+												using SQLCA;
+												if SQLCA.sqlcode = 100 then	// record not found
+													guo_func.msgbox("SM-0000010", as_tranType, "")
+													f_closeStatus()
+													return false
+												elseif SQLCA.sqlcode <> 0 then
+													guo_func.msgbox("SM-0000001", "Select error in sysTransactionParam" + "~r~n" + &
+																						  string(SQLCA.sqlcode) 	+ "~r~n" + &
+																						  SQLCA.sqlerrtext, "")
+													f_closeStatus()
+													return false
+												end if
+												
+												al_tranNo = al_tranNo + 1
+												f_closeStatus()
+												
+												return TRUE
+												
+											--END VALIDASI
 									
 										ls_reqno = ls_year + ls_month + string(ll_reqno,'00000000') 
 										
@@ -1048,7 +1567,36 @@ for ll_ctr = 1 to dw_1.rowCount()
 										if not guo_func.set_Number('BCCREQUESTNO',ll_reqno) then
 											return FALSE
 										end if	
-								
+										
+										--VALIDASI SET NUMBER
+														
+											update sysTransactionParam
+												set recordLocked = 'N',
+													 lockedUserName = '',
+													 lastTransactionNo = :al_tranno
+											where recordLocked = 'Y' 
+											       and divisionCode = :gs_divisionCode
+													and companyCode = :gs_companyCode
+													and tranTypeCode = :as_tranType
+													using SQLCA;
+											if SQLCA.sqlnrows < 1 then
+												guo_func.msgbox("SM-0000010", as_tranType 	+ "~r~n" + &
+																	string(SQLCA.sqlcode) 	+ "~r~n" + &
+																	SQLCA.sqlerrtext, "")
+												return false
+											elseif SQLCA.sqlcode <> 0 then
+												guo_func.msgbox("SM-0000001", "UPDATE - sysTransactionParam" + "~r~n" + &
+																					  string(SQLCA.sqlcode) 	+ "~r~n" + &
+																					  SQLCA.sqlerrtext, "Transaction Type: [" + as_tranType + "]")
+												return FALSE
+											end if
+											
+											commit using SQLCA;
+											
+											return TRUE
+											
+										--END VALIDASI
+							
 								elseif trim(as_reftrantypecode) = 'REFRESH' then
 									
 									if ls_subscriberstatuscode = 'APL' or ls_subscriberstatuscode = 'ACT' then
@@ -1056,6 +1604,91 @@ for ll_ctr = 1 to dw_1.rowCount()
 										if not guo_func.get_nextNumber('BCCREQUESTNO',ll_reqno,'WITH LOCK') then 
 											return FALSE
 										end if	
+										
+										--VALIDASI GET NEXT NUMBER
+														
+												f_displayStatus("Retrieving next transaction # for " + as_trantype + "...")
+
+													string	ls_lockedby
+													
+													if as_tranType = 'SCSREQUEST' then
+														
+														update systransactionparam
+														set recordlocked = 'N',
+														lockedusername = ''
+														where tranTypeCode = :as_tranType 
+																and divisionCode = :gs_divisionCode
+																and companyCode = :gs_companyCode
+																and  recordlocked = 'Y'
+														using SQLCA;
+														
+													end if 
+													
+													select lockedUserName
+													  		into :ls_lockedby
+													from sysTransactionParam
+													 		where tranTypeCode = :as_tranType 
+													 		and divisionCode = :gs_divisionCode
+													 		and companyCode = :gs_companyCode
+													using SQLCA;
+													if SQLCA.sqlcode = 100 then
+														guo_func.msgbox("SM-0000010", as_tranType, "")
+														f_closeStatus()
+														return false
+													elseif SQLCA.sqlcode <> 0 then
+														guo_func.msgbox("SM-0000001", "Select error in sysTransactionParam" + "~r~n" + &
+																							  string(SQLCA.sqlcode) 	+ "~r~n" + &
+																							  SQLCA.sqlerrtext, "")
+														f_closeStatus()
+														return false
+													end if
+													
+													if as_getmode = "WITH LOCK" then
+														do while true
+															update sysTransactionParam
+																set recordLocked = 'Y',
+																	 lockedUserName = :gs_username
+															   where recordLocked = 'N' 
+															   and tranTypeCode = :as_tranType
+															   and divisionCode = :gs_divisionCode
+													 		   and companyCode = :gs_companyCode		 
+															using SQLCA;
+															if SQLCA.sqlnrows < 1 then
+																if guo_func.msgbox("SM-0000011", ls_lockedby, "") = 2 then
+																	f_closeStatus()
+																	return false
+													 			end if
+															else
+																exit
+															end if
+														loop
+													end if
+													
+													select lastTransactionNo, tranYear
+													      into :al_tranNo, :ii_tranYear
+													from sysTransactionParam
+													      where tranTypeCode = :as_tranType
+													      and divisionCode = :gs_divisionCode
+													 		and companyCode = :gs_companyCode
+													using SQLCA;
+													if SQLCA.sqlcode = 100 then	// record not found
+														guo_func.msgbox("SM-0000010", as_tranType, "")
+														f_closeStatus()
+														return false
+													elseif SQLCA.sqlcode <> 0 then
+														guo_func.msgbox("SM-0000001", "Select error in sysTransactionParam" + "~r~n" + &
+																							  string(SQLCA.sqlcode) 	+ "~r~n" + &
+																							  SQLCA.sqlerrtext, "")
+														f_closeStatus()
+														return false
+													end if
+													
+													al_tranNo = al_tranNo + 1
+													f_closeStatus()
+													
+													return TRUE
+													
+												--END VALIDASI
 										
 										ls_reqno = ls_year + ls_month + string(ll_reqno,'00000000') 
 							
@@ -1092,12 +1725,126 @@ for ll_ctr = 1 to dw_1.rowCount()
 										if not guo_func.set_Number('BCCREQUESTNO',ll_reqno) then
 											return FALSE
 										end if	
+										
+										--VALIDASI SET NUMBER
+														
+											update sysTransactionParam
+												set recordLocked = 'N',
+													 lockedUserName = '',
+													 lastTransactionNo = :al_tranno
+											where recordLocked = 'Y' 
+											       and divisionCode = :gs_divisionCode
+													and companyCode = :gs_companyCode
+													and tranTypeCode = :as_tranType
+													using SQLCA;
+											if SQLCA.sqlnrows < 1 then
+												guo_func.msgbox("SM-0000010", as_tranType 	+ "~r~n" + &
+																	string(SQLCA.sqlcode) 	+ "~r~n" + &
+																	SQLCA.sqlerrtext, "")
+												return false
+											elseif SQLCA.sqlcode <> 0 then
+												guo_func.msgbox("SM-0000001", "UPDATE - sysTransactionParam" + "~r~n" + &
+																					  string(SQLCA.sqlcode) 	+ "~r~n" + &
+																					  SQLCA.sqlerrtext, "Transaction Type: [" + as_tranType + "]")
+												return FALSE
+											end if
+											
+											commit using SQLCA;
+											
+											return TRUE
+											
+										--END VALIDASI
 							
 									else //if not APPLIED or ACTIVE ---> DEACTIVATE
 										
 										if not guo_func.get_nextNumber('BCCREQUESTNO',ll_reqno,'WITH LOCK') then 
 											return FALSE
 										end if	
+										
+										--VALIDASI GET NEXT NUMBER
+														
+												f_displayStatus("Retrieving next transaction # for " + as_trantype + "...")
+
+													string	ls_lockedby
+													
+													if as_tranType = 'SCSREQUEST' then
+														
+														update systransactionparam
+														set recordlocked = 'N',
+														lockedusername = ''
+														where tranTypeCode = :as_tranType 
+																and divisionCode = :gs_divisionCode
+																and companyCode = :gs_companyCode
+																and  recordlocked = 'Y'
+														using SQLCA;
+														
+													end if 
+													
+													select lockedUserName
+													  		into :ls_lockedby
+													from sysTransactionParam
+													 		where tranTypeCode = :as_tranType 
+													 		and divisionCode = :gs_divisionCode
+													 		and companyCode = :gs_companyCode
+													using SQLCA;
+													if SQLCA.sqlcode = 100 then
+														guo_func.msgbox("SM-0000010", as_tranType, "")
+														f_closeStatus()
+														return false
+													elseif SQLCA.sqlcode <> 0 then
+														guo_func.msgbox("SM-0000001", "Select error in sysTransactionParam" + "~r~n" + &
+																							  string(SQLCA.sqlcode) 	+ "~r~n" + &
+																							  SQLCA.sqlerrtext, "")
+														f_closeStatus()
+														return false
+													end if
+													
+													if as_getmode = "WITH LOCK" then
+														do while true
+															update sysTransactionParam
+																set recordLocked = 'Y',
+																	 lockedUserName = :gs_username
+															   where recordLocked = 'N' 
+															   and tranTypeCode = :as_tranType
+															   and divisionCode = :gs_divisionCode
+													 		   and companyCode = :gs_companyCode		 
+															using SQLCA;
+															if SQLCA.sqlnrows < 1 then
+																if guo_func.msgbox("SM-0000011", ls_lockedby, "") = 2 then
+																	f_closeStatus()
+																	return false
+													 			end if
+															else
+																exit
+															end if
+														loop
+													end if
+													
+													select lastTransactionNo, tranYear
+													      into :al_tranNo, :ii_tranYear
+													from sysTransactionParam
+													      where tranTypeCode = :as_tranType
+													      and divisionCode = :gs_divisionCode
+													 		and companyCode = :gs_companyCode
+													using SQLCA;
+													if SQLCA.sqlcode = 100 then	// record not found
+														guo_func.msgbox("SM-0000010", as_tranType, "")
+														f_closeStatus()
+														return false
+													elseif SQLCA.sqlcode <> 0 then
+														guo_func.msgbox("SM-0000001", "Select error in sysTransactionParam" + "~r~n" + &
+																							  string(SQLCA.sqlcode) 	+ "~r~n" + &
+																							  SQLCA.sqlerrtext, "")
+														f_closeStatus()
+														return false
+													end if
+													
+													al_tranNo = al_tranNo + 1
+													f_closeStatus()
+													
+													return TRUE
+													
+												--END VALIDASI
 										
 										ls_reqno = ls_year + ls_month + string(ll_reqno,'00000000') 
 							
@@ -1117,6 +1864,35 @@ for ll_ctr = 1 to dw_1.rowCount()
 										if not guo_func.set_Number('BCCREQUESTNO',ll_reqno) then
 											return FALSE
 										end if	
+										
+										--VALIDASI SET NUMBER
+														
+												update sysTransactionParam
+													set recordLocked = 'N',
+														 lockedUserName = '',
+														 lastTransactionNo = :al_tranno
+												where recordLocked = 'Y' 
+												       and divisionCode = :gs_divisionCode
+														and companyCode = :gs_companyCode
+														and tranTypeCode = :as_tranType
+														using SQLCA;
+												if SQLCA.sqlnrows < 1 then
+													guo_func.msgbox("SM-0000010", as_tranType 	+ "~r~n" + &
+																		string(SQLCA.sqlcode) 	+ "~r~n" + &
+																		SQLCA.sqlerrtext, "")
+													return false
+												elseif SQLCA.sqlcode <> 0 then
+													guo_func.msgbox("SM-0000001", "UPDATE - sysTransactionParam" + "~r~n" + &
+																						  string(SQLCA.sqlcode) 	+ "~r~n" + &
+																						  SQLCA.sqlerrtext, "Transaction Type: [" + as_tranType + "]")
+													return FALSE
+												end if
+												
+												commit using SQLCA;
+												
+												return TRUE
+												
+											--END VALIDASI
 									end if
 								
 								elseif  trim(as_reftrantypecode) = 'REACTIVATE' or trim(as_reftrantypecode) = 'ACTIVATEPDS' or trim(as_reftrantypecode) = 'ACTIVATEADS' then
@@ -1124,6 +1900,91 @@ for ll_ctr = 1 to dw_1.rowCount()
 										if not guo_func.get_nextNumber('BCCREQUESTNO',ll_reqno,'WITH LOCK') then 
 											return FALSE
 										end if	
+										
+										--VALIDASI GET NEXT NUMBER
+														
+												f_displayStatus("Retrieving next transaction # for " + as_trantype + "...")
+
+													string	ls_lockedby
+													
+													if as_tranType = 'SCSREQUEST' then
+														
+														update systransactionparam
+														set recordlocked = 'N',
+														lockedusername = ''
+														where tranTypeCode = :as_tranType 
+																and divisionCode = :gs_divisionCode
+																and companyCode = :gs_companyCode
+																and  recordlocked = 'Y'
+														using SQLCA;
+														
+													end if 
+													
+													select lockedUserName
+													  		into :ls_lockedby
+													from sysTransactionParam
+													 		where tranTypeCode = :as_tranType 
+													 		and divisionCode = :gs_divisionCode
+													 		and companyCode = :gs_companyCode
+													using SQLCA;
+													if SQLCA.sqlcode = 100 then
+														guo_func.msgbox("SM-0000010", as_tranType, "")
+														f_closeStatus()
+														return false
+													elseif SQLCA.sqlcode <> 0 then
+														guo_func.msgbox("SM-0000001", "Select error in sysTransactionParam" + "~r~n" + &
+																							  string(SQLCA.sqlcode) 	+ "~r~n" + &
+																							  SQLCA.sqlerrtext, "")
+														f_closeStatus()
+														return false
+													end if
+													
+													if as_getmode = "WITH LOCK" then
+														do while true
+															update sysTransactionParam
+																set recordLocked = 'Y',
+																	 lockedUserName = :gs_username
+															   where recordLocked = 'N' 
+															   and tranTypeCode = :as_tranType
+															   and divisionCode = :gs_divisionCode
+													 		   and companyCode = :gs_companyCode		 
+															using SQLCA;
+															if SQLCA.sqlnrows < 1 then
+																if guo_func.msgbox("SM-0000011", ls_lockedby, "") = 2 then
+																	f_closeStatus()
+																	return false
+													 			end if
+															else
+																exit
+															end if
+														loop
+													end if
+													
+													select lastTransactionNo, tranYear
+													      into :al_tranNo, :ii_tranYear
+													from sysTransactionParam
+													      where tranTypeCode = :as_tranType
+													      and divisionCode = :gs_divisionCode
+													 		and companyCode = :gs_companyCode
+													using SQLCA;
+													if SQLCA.sqlcode = 100 then	// record not found
+														guo_func.msgbox("SM-0000010", as_tranType, "")
+														f_closeStatus()
+														return false
+													elseif SQLCA.sqlcode <> 0 then
+														guo_func.msgbox("SM-0000001", "Select error in sysTransactionParam" + "~r~n" + &
+																							  string(SQLCA.sqlcode) 	+ "~r~n" + &
+																							  SQLCA.sqlerrtext, "")
+														f_closeStatus()
+														return false
+													end if
+													
+													al_tranNo = al_tranNo + 1
+													f_closeStatus()
+													
+													return TRUE
+													
+												--END VALIDASI
 										
 										ls_reqno = ls_year + ls_month + string(ll_reqno,'00000000') 
 										ll_reqno  = ll_reqno + 1
@@ -1146,6 +2007,35 @@ for ll_ctr = 1 to dw_1.rowCount()
 										if not guo_func.set_Number('BCCREQUESTNO',ll_reqno) then
 											return FALSE
 										end if	
+										
+										--VALIDASI SET NUMBER
+														
+												update sysTransactionParam
+													set recordLocked = 'N',
+														 lockedUserName = '',
+														 lastTransactionNo = :al_tranno
+												where recordLocked = 'Y' 
+												       and divisionCode = :gs_divisionCode
+														and companyCode = :gs_companyCode
+														and tranTypeCode = :as_tranType
+														using SQLCA;
+												if SQLCA.sqlnrows < 1 then
+													guo_func.msgbox("SM-0000010", as_tranType 	+ "~r~n" + &
+																		string(SQLCA.sqlcode) 	+ "~r~n" + &
+																		SQLCA.sqlerrtext, "")
+													return false
+												elseif SQLCA.sqlcode <> 0 then
+													guo_func.msgbox("SM-0000001", "UPDATE - sysTransactionParam" + "~r~n" + &
+																						  string(SQLCA.sqlcode) 	+ "~r~n" + &
+																						  SQLCA.sqlerrtext, "Transaction Type: [" + as_tranType + "]")
+													return FALSE
+												end if
+												
+												commit using SQLCA;
+												
+												return TRUE
+												
+											--END VALIDASI
 											
 										
 								elseif  trim(as_reftrantypecode) = 'CHANGEPACK'  then
