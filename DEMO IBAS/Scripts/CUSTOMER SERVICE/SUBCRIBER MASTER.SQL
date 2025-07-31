@@ -536,7 +536,1289 @@ case when arAcctSubscriber.payment_option = 0 then 'Pay via Pay Partners'
         and ( arAcctSubscriber.companyCode = :as_company)
 	and rownum < 2
 	
-	
+	--EVENT BUTTON CLICK IN TAB SUBSCRIBER INFO
+	  long 	 ll_xPos, ll_yPos
+		string   ls_handle,ls_acctNo, ls_acctno_editAdd, ls_substypecode
+		
+		ls_acctNo = this.getItemString(row,"acctNo")
+		
+		if dwo.name = 'b_view' then
+			opensheetwithparm(w_subscriber_char_refs,getItemString(row,'acctno'),w_mdiFrame,0,original!)
+		end if	
+		
+		if dwo.name = 'b_1' then
+				
+			ole_1.object.apptivate()
+				
+			ole_1.object.GetCircleCoor()
+			ll_xpos = ole_1.object.xp
+			ll_ypos = ole_1.object.yp
+			ls_handle = ole_1.object.enthandle
+				
+			this.setItem(row,'xpos',ll_xpos)
+			this.setItem(row,'ypos',ll_ypos)
+			this.setItem(row,'handle',ls_handle)
+			
+			--NGLara | 2008-03-08
+			--ninung meglage kening update ayni ot ala yang commit?
+			
+			--this.update()  <<<<<-----
+			
+		elseif dwo.name = 'b_edittinbname' then
+				
+				openwithparm(w_edit_tin_bstradename,is_acctNo)
+				
+				
+		elseif dwo.name = 'b_3' then
+			
+					openwithparm(w_update_datelcom_no,is_acctNo)
+				
+				
+		elseif dwo.name = 'b_2'	 then
+			--Locate subs.
+			
+			ls_handle = this.getItemString(row,"handle")
+			ll_xPos = this.getItemNumber(row,"xpos")
+			ll_ypos = this.getItemNumber(row,"ypos")
+		
+			ole_1.object.xposition = ll_xPos
+			ole_1.object.yposition = ll_yPos
+			ole_1.object.magnification = 500
+			ole_1.object.Locate()
+			
+			ole_1.object.apptivate()
+			
+		elseif dwo.name = 'b_refreshusername' then
+			
+			this.trigger dynamic event ue_refreshUserName()	  
+		
+		elseif dwo.name = 'b_bundle' then
+		
+			this.trigger dynamic event ue_update_bundled_acctno()
+		
+		elseif dwo.name = 'b_iptvaccount' then
+		
+			this.trigger dynamic event ue_update_iptv_account()
+			
+		elseif dwo.name = 'b_editaddress'	 then --LD 03/15/2010 ---> for CSR to edit account's addresses/contact nos.
+		
+		
+			select substypecode into :ls_substypecode
+			from aracctSubscriber
+			where acctno = :ls_acctNo
+			and divisionCode = :gs_divisionCode
+			and companyCode = :gs_companyCode
+			using SQLCA;
+			
+			if ls_substypecode = 'CP' then
+				openwithparm(w_fm_edit_address_cp,is_acctNo)
+			else
+				openwithparm(w_fm_edit_address_cp,is_acctNo)
+			end if 
+			
+			--QUERY FORM W_FM_EDIT_ADDRESS
+			SELECT arAcctSubscriber.acctno ,
+				       arAcctSubscriber.firstname ,
+				       arAcctSubscriber.middlename ,
+				       arAcctSubscriber.mothermaidenname ,
+				       arAcctSubscriber.lastname ,
+				       arAcctSubscriber.sex ,
+				       arAcctSubscriber.citizenshipcode ,
+				       arAcctSubscriber.birthdate ,
+				       arAcctSubscriber.civilstatus ,
+				       arAcctSubscriber.telno ,
+				       arAcctSubscriber.mobileno ,
+				       arAcctSubscriber.faxno ,
+				       arAcctSubscriber.emailaddress ,
+					  arAcctSubscriber.emailaddress2 , 
+					  arAcctSubscriber.emailaddress3 ,     
+				       SERVICE.houseno ,
+				       SERVICE.streetname ,
+				       billing.contactNo ,
+				       billing.contactName ,
+				       billing.houseNo ,
+				       billing.streetName ,
+				       billing.lotNo ,
+				       billing.blkNo ,
+				       SERVICE.blkNo ,
+				       SERVICE.phaseNo ,
+				       SERVICE.district ,
+				       SERVICE.purokNo ,
+				       SERVICE.subdivisioncode ,
+				       '' sSubdivisionName  ,
+				       SERVICE.barangaycode ,
+				       '' sbarangayName  ,
+				       SERVICE.municipalitycode ,
+				       '' smunicipalityName  ,
+				       SERVICE.provincecode ,
+				       '' sprovinceName  ,
+				       billing.phaseno ,
+				       billing.district ,
+				       billing.purokNo ,
+				       SERVICE.lotNo ,
+				       billing.SubdivisionCode ,
+				       '' bSubdivisionName  ,
+				       billing.BarangayCode ,
+				       '' bbarangayName  ,
+				       billing.MunicipalityCode ,
+				       '' bmunicipalityName  ,
+				       billing.ProvinceCode ,
+				       '' bprovinceName  ,
+				       arAcctSubscriber.tranno ,
+				       arAcctSubscriber.useradd ,
+				       arAcctSubscriber.DATEADD ,
+				       '' serviceAddressComplete  ,
+				       '' billingAddressComplete  ,
+				       SERVICE.bldgName ,
+				       billing.bldgName ,
+				       arAcctSubscriber.substypeCode ,
+				       arAcctSubscriber.subscriberName ,
+				       LPAD('', 30, ' ') gpsCoordinateN  ,
+				       LPAD('', 30, ' ') gpsCoordinateE  ,
+				       billing.completeAddress ,
+				       SERVICE.completeAddress,
+					  arAcctSubscriber.mobileno2,
+					  arAcctSubscriber.mobileno3,
+					  arAcctSubscriber.nameofCompany,
+				      arAcctSubscriber.Guarantor,
+					 arAcctSubscriber.spouseName,
+					 arAcctSubscriber.occupancyrate,
+					 arAcctSubscriber.numberofrooms
+				  FROM arAcctSubscriber 
+				         JOIN vw_arAcctAddress billing
+				          ON arAcctSubscriber.acctNo = billing.acctNo
+				         AND billing.addressTypeCode = 'BILLING'
+				         JOIN vw_arAcctAddress SERVICE
+				          ON arAcctSubscriber.acctNo = SERVICE.acctNo
+				         AND SERVICE.addressTypeCode = 'SERVADR1'
+				WHERE arAcctSubscriber.substypecode = 'CP'
+				
+			--END IF W_FM_EDIT_ADDRESS
+				
+			--BUTTON NEW ADD FORM w_fm_edit_address_cp
+				
+				dw_header.scrolltorow(dw_header.insertrow(0))
+				dw_header.setfocus()
+				
+				long	ll_tranno
+				if not guo_func.get_nextnumber("EDITADDTEMP", ll_tranno, "") then
+					return
+				end IF
+				
+				--VALIDASI guo_func.get_nextnumber
+					f_displayStatus("Retrieving next transaction # for " + as_trantype + "...")
+
+					string	ls_lockedby
+					
+					if as_tranType = 'SCSREQUEST' then
+						
+						update systransactionparam
+						set recordlocked = 'N',
+						lockedusername = ''
+						where tranTypeCode = :as_tranType 
+								and divisionCode = :gs_divisionCode
+								and companyCode = :gs_companyCode
+								and  recordlocked = 'Y'
+						using SQLCA;
+						
+					end if 
+					
+					select lockedUserName
+					  		into :ls_lockedby
+					from sysTransactionParam
+					 		where tranTypeCode = :as_tranType 
+					 		and divisionCode = :gs_divisionCode
+					 		and companyCode = :gs_companyCode
+					using SQLCA;
+					if SQLCA.sqlcode = 100 then
+						guo_func.msgbox("SM-0000010", as_tranType, "")
+						f_closeStatus()
+						return false
+					elseif SQLCA.sqlcode <> 0 then
+						guo_func.msgbox("SM-0000001", "Select error in sysTransactionParam" + "~r~n" + &
+															  string(SQLCA.sqlcode) 	+ "~r~n" + &
+															  SQLCA.sqlerrtext, "")
+						f_closeStatus()
+						return false
+					end if
+					
+					if as_getmode = "WITH LOCK" then
+						do while true
+							update sysTransactionParam
+								set recordLocked = 'Y',
+									 lockedUserName = :gs_username
+							   where recordLocked = 'N' 
+							   and tranTypeCode = :as_tranType
+							   and divisionCode = :gs_divisionCode
+					 		   and companyCode = :gs_companyCode		 
+							using SQLCA;
+							if SQLCA.sqlnrows < 1 then
+								if guo_func.msgbox("SM-0000011", ls_lockedby, "") = 2 then
+									f_closeStatus()
+									return false
+					 			end if
+							else
+								exit
+							end if
+						loop
+					end if
+					
+					select lastTransactionNo, tranYear
+					      into :al_tranNo, :ii_tranYear
+					from sysTransactionParam
+					      where tranTypeCode = :as_tranType
+					      and divisionCode = :gs_divisionCode
+					 		and companyCode = :gs_companyCode
+					using SQLCA;
+					if SQLCA.sqlcode = 100 then	// record not found
+						guo_func.msgbox("SM-0000010", as_tranType, "")
+						f_closeStatus()
+						return false
+					elseif SQLCA.sqlcode <> 0 then
+						guo_func.msgbox("SM-0000001", "Select error in sysTransactionParam" + "~r~n" + &
+															  string(SQLCA.sqlcode) 	+ "~r~n" + &
+															  SQLCA.sqlerrtext, "")
+						f_closeStatus()
+						return false
+					end if
+					
+					al_tranNo = al_tranNo + 1
+					f_closeStatus()
+					
+					return true
+				--END VALIDASI
+				
+				datetime ldt_trandate
+				ldt_trandate = guo_func.get_server_date()
+				dw_header.setitem(1, "tranno", string(ll_tranno, "00000000"))
+				dw_header.setitem(1, "dateadd", ldt_trandate)
+				dw_header.setitem(1, "useradd", gs_username)
+				
+				string ls_acctNo
+				
+				ls_acctNo = trim(message.stringparm)
+					
+				if ls_acctNo <> '' then
+					dw_header.setitem(dw_header.getrow(), "acctno", ls_acctNo)
+					
+					uo_subscriber_def luo_subscriber
+					luo_subscriber = create uo_subscriber_def
+				
+					if not luo_subscriber.setAcctNo(ls_acctNo) then
+						guo_func.msgbox("Warning!",luo_subscriber.lastSqlCode + "~r~n" + &
+															luo_subscriber.lastSqlErrText)
+						return
+					end IF
+					
+					--VALIDASI luo_subscriber.setAcctNo
+					
+
+					lastMethodAccessed = 'setAcctNo'
+					
+					acctNo = as_acctNo
+					
+					select 
+					tranNo,
+					arAcctSubscriber.acctNo,
+					subscriberName,
+					typeOfBusiness,
+					lastName,
+					firstName,
+					middleName,
+					motherMaidenName,
+					citizenshipCode,
+					sex,
+					birthDate,
+					civilStatus,
+					telNo,
+					mobileNo,
+					faxNo,
+					emailAddress,
+					service.serviceHomeOwnerShip, 
+					service.serviceLessorOwnerName,
+					service.serviceLessorOwnerContactNo,
+					service.serviceYearsResidency,
+					service.serviceExpirationDate,
+					service.HouseNo, 
+					service.StreetName, 
+					service.BldgName,
+					service.LotNo,
+					service.BlkNo,
+					service.Phaseno,
+					service.District,
+					service.Purokno,
+					service.SubdivisionCode,
+					service.BarangayCode,
+					service.MunicipalityCode,
+					service.ProvinceCode,
+					circuitID,
+					service.CompleteAddress,
+					service.contactName,
+					service.contactNo,
+					billing.contactName,
+					billing.contactNo,
+					billing.HouseNo,
+					billing.StreetName,
+					billing.BldgName,
+					billing.LotNo,
+					billing.BlkNo,
+					billing.PhaseNo,
+					billing.District,
+					billing.Purokno,
+					billing.SubdivisionCode,
+					billing.BarangayCode,
+					billing.MunicipalityCode,
+					billing.ProvinceCode,
+					billing.CompleteAddress,
+					chargeTypeCode, 
+					subsUserTypeCode,
+					packageCode, 
+					subscriberStatusCode,  
+					subsTypeCode,  
+					dateApplied,
+					dateInstalled, 
+					dateAutoDeactivated,
+					dateManualDeactivated,
+					datePermanentlyDisconnected,
+					dateReactivated,
+					qtyAcquiredSTB,
+					totalBoxesBeforeDeactivation,
+					nvl(numberOfRooms,0),
+					nvl(occupancyRate,0),
+					nvl(mLineCurrentMonthlyRate,0), 
+					nvl(mLinePreviousMonthlyRate,0),
+					nvl(extCurrentMonthlyRate,0) ,
+					nvl(extPreviousMonthlyRate,0),
+					withAdvances,
+					locked,
+					lockedBy,
+					lockedWithTrans,
+					referenceJONo,
+					acquisitionTypeCode,
+					agentCode,
+					useradd,
+					dateadd,
+					currencyCode,
+					password,
+					subsUserName,
+					nodeNo,
+					servicePostNo,
+					service.CompleteAddress,
+					b.completeAddress,
+					c.completeAddress,
+					billing.CompleteAddress,
+					bundledCTVAcctNo,
+					bundledINETAcctNo,
+					lockinperiod,
+					mobileno2,
+					mobileno3,
+					emailaddress2,
+					emailaddress3,
+					nameofcompany,
+					guarantor,
+					spousename,
+					lockinPeriod,
+					daterelockin,
+					from_NOCOICOP
+					
+					into 
+					
+					:tranNo,
+					:acctNo,
+					:subscriberName,
+					:typeOfBusiness,
+					:lastName,
+					:firstName,
+					:middleName,
+					:motherMaidenName,
+					:citizenshipCode,
+					:sex,
+					:birthDate,
+					:civilStatus,
+					:telNo,
+					:mobileNo,
+					:faxNo,
+					:emailAddress,
+					:serviceHomeOwnerShip,
+					:serviceLessorOwnerName,
+					:serviceLessorOwnerContactNo,
+					:serviceYearsResidency,
+					:serviceExpirationDate,
+					:serviceHouseNo,
+					:serviceStreetName,
+					:serviceBldgCompApartmentName,
+					:serviceLotNo,
+					:serviceBlockNo,
+					:servicePhase,
+					:serviceDistrict,
+					:servicePurok,
+					:serviceSubdivisionCode,
+					:serviceBarangayCode,
+					:serviceMunicipalityCode,
+					:serviceProvinceCode,
+					:circuitID,
+					:serviceAddressComplete,
+					:serviceContactName,
+					:serviceContactNo,
+					:billingContactName,
+					:billingContactNo,
+					:billingHouseNo,
+					:billingStreetName,
+					:billingBldgCompApartmentName,
+					:billingLotNo,
+					:billingBlockNo,
+					:billingPhase,
+					:billingDistrict,
+					:billingPurok,
+					:billingSubdivisionCode,
+					:billingBarangayCode,
+					:billingMunicipalityCode,
+					:billingProvinceCode,
+					:billingAddressComplete,
+					:chargeTypeCode,
+					:subsUserTypeCode,
+					:packageCode,
+					:subscriberStatusCode,
+					:subsTypeCode,
+					:dateApplied,
+					:dateInstalled,
+					:dateAutoDeactivated,
+					:dateManualDeactivated,
+					:datePermanentlyDisconnected,
+					:dateReactivated,
+					:qtyAcquiredSTB,
+					:totalBoxesBeforeDeactivation,
+					:numberOfRooms,
+					:occupancyRate,
+					:mLineCurrentMonthlyRate,
+					:mLinePreviousMonthlyRate,
+					:extCurrentMonthlyRate,
+					:extPreviousMonthlyRate,
+					:withAdvances,
+					:locked,
+					:lockedBy,
+					:lockedWithTrans,
+					:referenceJONo,
+					:acquisitionTypeCode,
+					:agentCode,
+					:useradd,
+					:dateadd,
+					:currencyCode,
+					:password,
+					:subsUserName,
+					:nodeNo,
+					:servicePostNo,
+					:siteA,
+					:siteB,
+					:businessAdd,
+					:billingAdd,
+					:bundledCTVAcctNo,
+					:bundledINETAcctNo,
+					:lockinperiod,
+					:mobileno2,
+					:mobileno3,
+					:emailaddress2,
+					:emailaddress3,
+					:nameofcompany,
+					:guarantor,
+					:spousename,
+					:lockinPeriod,
+					:daterelockin,
+					:from_NOCOICOP
+					from arAcctSubscriber
+					inner join vw_arAcctAddress billing on billing.acctNo  = arAcctSubscriber.acctNo 
+						and billing.addressTypeCode = 'BILLING' 
+						and billing.divisionCode  = arAcctSubscriber.divisionCode 
+						and billing.companyCode = arAcctSubscriber.companyCode 
+					inner join vw_arAcctAddress service on service.acctNo  = arAcctSubscriber.acctNo 
+						and service.addressTypeCode = 'SERVADR1' 
+						and service.divisionCode  = arAcctSubscriber.divisionCode 
+						and service.companyCode = arAcctSubscriber.companyCode 
+					left join vw_arAcctAddress b on b.acctNo  = arAcctSubscriber.acctNo
+						and b.addressTypeCode = 'SERVADR2' 
+						and b.divisionCode  = arAcctSubscriber.divisionCode 
+						and b.companyCode = arAcctSubscriber.companyCode 
+					left join vw_arAcctAddress c on c.acctNo  = arAcctSubscriber.acctNo 
+						and c.addressTypeCode = 'BUSINESS' 
+						and c.divisionCode  = arAcctSubscriber.divisionCode 
+						and c.companyCode = arAcctSubscriber.companyCode 
+					
+					
+					where arAcctSubscriber.acctNo = :acctNo
+					and arAcctSubscriber.divisionCode = :gs_divisionCode 
+					and arAcctSubscriber.companyCode = :gs_companyCode
+					AND ARACCTSUBSCRIBER.DBDIRECTION <> 'HOBS'
+					and rownum < 2
+					
+					using SQLCA;
+					if SQLCA.sqlcode < 0 then
+						lastSQLCode		= string(SQLCA.sqlcode)
+						lastSQLErrText	= SQLCA.sqlerrtext
+						return FALSE
+					elseif SQLCA.sqlcode = 100 then
+						lastSQLCode		= string(SQLCA.sqlcode)
+						lastSQLErrText	= "The account number you've just entered does not exist."
+						return FALSE
+					end if
+					
+					select accountTypeCode
+					into :accountTypeCode
+					from arAccountMaster
+					where acctNo = :acctNo
+					and divisionCode = :gs_divisionCode
+					and companyCode = :gs_companyCode
+					using SQLCA;
+					if SQLCA.sqlcode < 0 then
+						lastSQLCode		= string(SQLCA.sqlcode)
+						lastSQLErrText	= SQLCA.sqlerrtext
+						return FALSE
+					elseif SQLCA.sqlcode = 100 then
+						lastSQLCode		= string(SQLCA.sqlcode)
+						lastSQLErrText	= "The account number you've just entered does not exist."
+						return FALSE
+					end if
+					
+					select chargeTypeName
+					  into :chargeTypeName
+					  from chargeTypeMaster
+					 where chargeTypeCode = :chargeTypeCode
+					 using SQLCA;
+					if SQLCA.sqlcode < 0 then
+						lastSQLCode		= string(SQLCA.sqlcode)
+						lastSQLErrText	= SQLCA.sqlerrtext
+						return FALSE
+					elseif SQLCA.sqlcode = 100 then
+						lastSQLCode		= string(SQLCA.sqlcode)
+						lastSQLErrText	= "The customer type code [" + chargeTypeCode + "] does not exist."
+						return FALSE
+					end if
+					
+					select subsTypeName
+					  into :subsTypeName
+					  from subscriberTypeMaster
+					 where subsTypeCode = :subsTypeCode
+					 and companyCode = :gs_companyCode
+					using SQLCA;
+					if SQLCA.sqlcode < 0 then
+						lastSQLCode		= string(SQLCA.sqlcode)
+						lastSQLErrText	= SQLCA.sqlerrtext
+						return FALSE
+					elseif SQLCA.sqlcode = 100 then
+						lastSQLCode		= string(SQLCA.sqlcode)
+						lastSQLErrText	= "The subscriber type code [" + subsTypeCode + "] does not exist."
+						return FALSE
+					end if
+					
+					select subsUserTypeName
+					  into :subsUserTypeName
+					  from subsUserTypeMaster
+					 where subsUserTypeCode = :subsUserTypeCode
+					 using SQLCA;
+					if SQLCA.sqlcode < 0 then
+						lastSQLCode		= string(SQLCA.sqlcode)
+						lastSQLErrText	= SQLCA.sqlerrtext
+						return FALSE
+					elseif SQLCA.sqlcode = 100 then
+						lastSQLCode		= string(SQLCA.sqlcode)
+						lastSQLErrText	= "The subscriber user type code [" + subsUserTypeCode + "] does not exist."
+						return FALSE
+					end if
+					
+					select serviceType, isDigital
+					into :serviceType, :isDigital
+					from arPackageMaster
+					where packageCode = :packageCode
+					and divisionCode = :gs_divisionCode
+					and companyCode = :gs_companyCode
+					using SQLCA;
+					
+					if serviceType = 'CTV' then
+						select a.packageName, a.generalPackageCode, b.generalPackageName, a.packageDescription
+						  into :packageName, :generalPackageCode, :generalPackageName, :packageDescription
+						  from arPackageMaster a, generalPackageMaster b
+						 where a.generalPackageCode = b.generalPackageCode
+							and a.divisionCode = :gs_divisionCode
+							and a.companyCode = :gs_companyCode
+							and b.divisionCode = :gs_divisionCode
+							and b.companyCode = :gs_companyCode
+							and a.packageCode = :packageCode
+						 using SQLCA;
+						if SQLCA.sqlcode < 0 then
+							lastSQLCode		= string(SQLCA.sqlcode)
+							lastSQLErrText	= SQLCA.sqlerrtext
+							return FALSE
+						elseif SQLCA.sqlcode = 100 then
+							lastSQLCode		= string(SQLCA.sqlcode)
+							lastSQLErrText	= "The package code [" + packageCode + "] does not exist."
+							return FALSE
+						end if
+					elseif serviceType = 'INET' then
+						select a.packageName, a.packageTypeCode, b.packageTypename, a.cmProfileCode, a.limited, a.hoursFree, a.excessPerMinuteRate, a.ppoeCode, a.shortName, a.packageDescription
+						  into :packageName, :packageTypeCode, :packageTypeName, :cmProfileCode, :limited, :hoursFree, :excessPerMinuteRate, :ppoeCode, :shortName, :packageDescription
+						  from arPackageMaster a, packageTypeMaster b
+						 where a.packageTypeCode = b.packageTypeCode
+							and a.divisionCode = :gs_divisionCode
+							and a.companyCode = :gs_companyCode
+							and b.companyCode = :gs_companyCode
+							and b.divisionCode = :gs_divisionCode
+							and a.packageCode = :packageCode
+						 using SQLCA;
+						if SQLCA.sqlcode < 0 then
+							lastSQLCode		= string(SQLCA.sqlcode)
+							lastSQLErrText	= SQLCA.sqlerrtext
+							return FALSE
+						elseif SQLCA.sqlcode = 100 then
+							lastSQLCode		= string(SQLCA.sqlcode)
+							lastSQLErrText	= "The package code [" + packageCode + "] does not exist."
+							return FALSE
+						end if
+						
+						if not isnull(cmProfileCode) then
+					
+							select ubrType
+							into :ubrType
+							from nodesInIPCommander
+							where nodeNo = :nodeNo
+							and divisionCode = :gs_divisionCode
+							and companyCode = :gs_companyCode
+							using SQLCA;
+							
+							select clientClassValue
+							into :clientClassValue
+							from clientClassValueMaster
+							where cmProfileCode = :cmProfileCode
+							and ubrType = :ubrType
+							and divisionCode = :gs_divisionCode
+							and companyCode = :gs_companyCode
+							using SQLCA;		
+					
+							select cmProfileName, vLan
+							  into :cmProfileName, :vLan
+							  from cmProfileMaster
+							 where cmProfileCode = :cmProfileCode
+							 and divisionCode = :gs_divisionCode
+							and companyCode = :gs_companyCode
+							using SQLCA;
+							if SQLCA.sqlcode = 100 then 
+								lastSQLCode = string(SQLCA.sqlcode)
+								lastSQLErrText = 'Record does not exist in CM Profile.' + '~r~n~r~n' + 'CM Profile Code : ' + cmProfileCode
+								return FALSE	
+							elseif SQLCA.sqlcode < 0 then 
+								lastSQLCode = string(SQLCA.sqlcode)
+								lastSQLErrText = 'SQL Error :' + '~r~n~r~n' + SQLCA.sqlerrtext
+								return FALSE	
+							end if
+						
+						end if
+					end if
+					
+					select subscriberStatusName
+					  into :subscriberStatusName
+					  from subscriberStatusMaster
+					 where subscriberStatusCode = :subscriberStatusCode
+					 using SQLCA;
+					if SQLCA.sqlcode < 0 then
+						lastSQLCode		= string(SQLCA.sqlcode)
+						lastSQLErrText	= SQLCA.sqlerrtext
+						return FALSE
+					elseif SQLCA.sqlcode = 100 then
+						lastSQLCode		= string(SQLCA.sqlcode)
+						lastSQLErrText	= "The subscriber status code [" + subscriberStatusCode + "] does not exist."
+						return FALSE
+					end if
+					
+					//~~~~~~~~~~~~~~~~~~CURRENCY~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+					if isNull(currencyCode) then
+						currencyCode = 'PHP'
+					end if
+					
+					select conversionRate
+					into :conversionRate
+					from currencyMaster
+					where currencyCode = :currencyCode
+					using SQLCA;
+					if SQLCA.sqlcode < 0 then
+						lastSQLCode	= string(SQLCA.sqlcode)
+						lastSQLErrText	= SQLCA.sqlerrtext
+						return FALSE
+					elseif SQLCA.sqlcode = 100 then
+						lastSQLCode	= string(SQLCA.sqlcode)
+						lastSQLErrText	= "The currency code [" + currencyCode + "] does not exist."
+						return FALSE
+					end if
+					
+					select conversionRate
+					into :dollarRate
+					from currencyMaster
+					where currencyCode = 'USD'
+					using SQLCA;
+					if SQLCA.SQLCode < 0 then
+						lastSQLCode	= string(SQLCA.SQLCode)
+						lastSQLErrText	= SQLCA.SQLErrText
+						return FALSE
+					end if
+					
+					
+					select acctNo into :fullAccountNumber
+					from vw_fullAcctNo
+					where ibas_acctNo = :as_acctNo
+					and divisionCode = :gs_divisionCode
+					and companyCode = :gs_companyCode
+					using SQLCA;
+					
+					
+					return TRUE
+
+					--END VALIDASI
+						
+					string ls_oldcompleteAddress	
+					select completeAddress
+					into :ls_oldCompleteAddress
+					from vw_arAcctAddress
+					where acctNo = :ls_acctno
+						and companycode = :gs_companycode
+						and divisioncode = :gs_divisioncode
+					using SQLCA;
+				
+					
+					dw_header.setitem(1,"vw_aracctaddress_completeaddress",ls_oldCompleteAddress)
+					dw_header.setitem(1,"firstname",luo_subscriber.firstname)
+					dw_header.setitem(1, "lastname", luo_subscriber.lastname )		
+					dw_header.setitem(1, "middlename", luo_subscriber.middlename )	
+					dw_header.setitem(1,"subscribername",luo_subscriber.subscribername)
+					dw_header.setitem(1, "mothermaidenname", luo_subscriber.mothermaidenname )
+					dw_header.setitem(1,"substypecode",luo_subscriber.substypecode)
+					dw_header.setitem(1, "sex", luo_subscriber.sex )		
+					dw_header.setitem(1, "birthdate", luo_subscriber.birthdate )		
+					dw_header.setitem(1, "civilstatus", luo_subscriber.civilstatus )
+					dw_header.setitem(1, "telno", luo_subscriber.telno )		
+					dw_header.setitem(1, "mobileno", luo_subscriber.mobileno )	
+					dw_header.setitem(1, "mobileno2", luo_subscriber.mobileno2 )		
+					dw_header.setitem(1, "mobileno3", luo_subscriber.mobileno3 )		
+					dw_header.setitem(1, "faxno", luo_subscriber.faxno )
+					dw_header.setitem(1, "emailaddress", luo_subscriber.emailaddress )
+					dw_header.setitem(1, "emailaddress2", luo_subscriber.emailaddress2 )
+					dw_header.setitem(1, "emailaddress3", luo_subscriber.emailaddress3 )
+					dw_header.setitem(1, "nameofcompany", luo_subscriber.nameofcompany )
+					dw_header.setitem(1, "guarantor", luo_subscriber.guarantor )
+					dw_header.setitem(1, "spousename", luo_subscriber.spousename )
+					dw_header.setitem(1, "citizenshipcode", luo_subscriber.citizenshipcode )
+					
+					dw_header.setitem(1, "billinghouseno", luo_subscriber.billinghouseno)
+					dw_header.setitem(1, "billingblkno", luo_subscriber.billingblockno)
+					dw_header.setitem(1, "billinglotno", luo_subscriber.billinglotno)
+					dw_header.setitem(1, "billingstreetname", luo_subscriber.billingstreetname)
+					
+					dw_header.setitem(1, "billingpurokno", luo_subscriber.billingpurok)
+					dw_header.setitem(1, "billingphaseno", luo_subscriber.billingphase)
+					dw_header.setitem(1, "billingdistrict", luo_subscriber.billingdistrict)
+					dw_header.setitem(1, "billingsubdivisioncode", luo_subscriber.billingsubdivisioncode)
+					dw_header.setitem(1, "billingbarangaycode", luo_subscriber.billingbarangaycode)
+					dw_header.setitem(1, "billingmunicipalitycode", luo_subscriber.billingmunicipalitycode)
+					dw_header.setitem(1, "billingprovincecode", luo_subscriber.billingprovincecode)
+					dw_header.setitem(1, "billingbldgname", luo_subscriber.billingbldgcompapartmentname)
+					
+					dw_header.setitem(1, "servicehouseno", luo_subscriber.servicehouseno)
+					dw_header.setitem(1, "serviceblkno", luo_subscriber.serviceblockno)
+					dw_header.setitem(1, "servicelotno", luo_subscriber.servicelotno)
+					dw_header.setitem(1, "servicestreetname", luo_subscriber.servicestreetname)
+					dw_header.setitem(1, "servicebldgname", luo_subscriber.servicebldgcompapartmentname)
+					dw_header.setitem(1, "servicepurokno", luo_subscriber.servicepurok)
+					dw_header.setitem(1, "servicephaseno", luo_subscriber.servicephase)
+					dw_header.setitem(1, "servicedistrict", luo_subscriber.servicedistrict)
+					dw_header.setitem(1, "servicesubdivisioncode", luo_subscriber.servicesubdivisioncode)
+					dw_header.setitem(1, "servicebarangaycode", luo_subscriber.servicebarangaycode)
+					dw_header.setitem(1, "servicemunicipalitycode", luo_subscriber.servicemunicipalitycode)
+					dw_header.setitem(1, "serviceprovincecode", luo_subscriber.serviceprovincecode)
+					dw_header.setitem(1, "occupancyRate", luo_subscriber.occupancyRate)
+					dw_header.setitem(1, "numberofrooms", luo_subscriber.numberofrooms)
+					
+				
+				end if	
+				
+				this.triggerevent('ue_enable')
+				
+				dw_header.triggerevent("ue_search")
+				
+			--END BUTTON NEW ADD
+			
+			--BUTTON SAVE FOR FORM EDIT SUBSCRIBER INFO
+			  
+				long ll_tranno, ll_occupancyrate, ll_numberofrooms
+				string ls_acctno, ls_tranno, ls_substypecode, ls_subscriber, ls_billingname, ls_billingcontactname
+				date	 ldt_date
+				datetime ldtme_dateadd
+				string ls_firstname, ls_lastname, ls_middlename, ls_subsname, ls_mothermaidenname, ls_sex, ls_civilstatus
+				string ls_telno, ls_mobileno, ls_faxno, ls_emailaddress, ls_citizenship, ls_chargeTypeCode
+				string ls_billingfirstname, ls_billinglastname, ls_billingmiddlename, ls_billingtelno
+				string ls_billinghouseno, ls_billingblockno, ls_billinglotno, ls_billingstreetname 
+				string ls_billingpurok, ls_billingphase, ls_billingdistrict, ls_servicehouseno
+				string ls_serviceblockno, ls_servicelotno, ls_servicestreetname, ls_servicepurok
+				string ls_servicephase, ls_servicedistrict, ls_serviceaddress, ls_billingaddress
+				string ls_billingSubdivisionCode, ls_billingBarangayCode, ls_billingMunicipalityCode, ls_billingProvinceCode
+				string ls_serviceSubdivisionCode, ls_serviceBarangayCode, ls_serviceMunicipalityCode, ls_serviceProvinceCode
+				string ls_serviceBldgCompApartmentName, ls_billingBldgCompApartmentName, ls_acctNoTemp, ls_oldCompleteAddress,  ls_mobileno2, ls_mobileno3, ls_emailaddress2, ls_emailaddress3, ls_guarantor, ls_nameofcompany,ls_spousename
+				
+				uo_subscriber_def luo_subscriber
+				luo_subscriber = create uo_subscriber_def
+				
+				ls_acctno = dw_header.getitemstring(1,"acctno")
+				dw_header.acceptText()
+				if not guo_func.get_nextnumber('EDITADDTEMP', ll_tranno, 'WITH LOCK') then
+					return -1
+				end if
+				ls_tranno = string(ll_tranno,'00000000')
+				ldtme_dateadd = guo_func.get_Server_date()
+				dw_header.accepttext()
+				
+				ls_firstname 	= dw_header.getItemString(1,"firstname")
+				ls_lastname  	= dw_header.getItemString(1, "lastname")		
+				ls_middlename	= dw_header.getItemString(1, "middlename")	
+				ls_subscriber 	= dw_header.getItemString(1, "subscribername")
+				ls_substypecode = dw_header.getItemString(1, "substypecode")
+				ls_mothermaidenname = dw_header.getItemString(1, "mothermaidenname")
+				ls_sex = dw_header.getItemString(1, "sex")		
+				ldt_date = DATE(dw_header.getItemDateTIME(1, "birthdate"))
+				ls_civilstatus = dw_header.getItemString(1, "civilstatus")
+				ls_telno = dw_header.getItemString(1, "telno")		
+				ls_mobileno = dw_header.getItemString(1, "mobileno")		
+				ls_mobileno2 = dw_header.getItemString(1, "mobileno2")	
+				ls_mobileno3 = dw_header.getItemString(1, "mobileno3")	
+				ls_faxno = dw_header.getItemString(1, "faxno")
+				ls_emailaddress = dw_header.getItemString(1, "emailaddress")
+				ls_emailaddress2 = dw_header.getItemString(1, "emailaddress2")
+				ls_emailaddress3 = dw_header.getItemString(1, "emailaddress3")
+				ls_nameofcompany = dw_header.getItemString(1, "nameofcompany")
+				Ls_Guarantor = Dw_Header.Getitemstring(1, "guarantor")
+				ls_spousename = dw_header.getItemString(1, "spousename")
+				ls_citizenship = dw_header.getItemString(1, "citizenshipcode")
+				ls_billinglastname = dw_header.getItemString(1, "billingcontactname")		
+				ls_billingfirstname = dw_header.getItemString(1, "subscriberName")		
+				ls_billingmiddlename = dw_header.getItemString(1, "middlename")
+				ls_billingtelno = dw_header.getItemString(1, "billingcontactno")
+				ls_billingcontactname = dw_header.getItemString(1, "billingcontactname")
+				ll_occupancyrate = dw_header.getItemNumber(1, "occupancyrate")
+				ll_numberofrooms = dw_header.getItemNumber(1, "numberofrooms")
+				
+				if ls_substypecode = 'CO'or ls_substypecode = 'HO' or ls_firstName = "" then
+					ls_subsname    = ls_subscriber
+					ls_billinglastname = ""		
+					ls_billingfirstname = ""		
+					ls_billingmiddlename = ""
+					ls_firstname 	= ""
+					ls_lastname  	= ""	
+					ls_middlename	= ""	
+				else
+					ls_subsname    = ls_lastname+', '+ls_firstname+' '+ls_middlename
+					if isNull(ls_subsname) then
+						ls_subsname = ls_subscriber
+					end if
+					ls_billingname = ls_billinglastname+', '+ls_billingfirstname+' '+ls_billingmiddlename
+					if isNull(ls_billingname) then
+						ls_billingname = ls_billingcontactname
+					end if
+				end if
+				
+				ls_billinghouseno = dw_header.getItemString(1, "billinghouseno")
+				ls_billingblockno = dw_header.getItemString(1, "billingblkno")
+				ls_billinglotno = dw_header.getItemString(1, "billinglotno")
+				ls_billingstreetname = dw_header.getItemString(1, "billingstreetname")
+				ls_billingBldgCompApartmentName = dw_header.getItemString(1, "billingbldgname")
+				ls_billingpurok = dw_header.getItemString(1, "billingpurokno")
+				ls_billingphase = dw_header.getItemString(1, "billingphaseno")
+				ls_billingdistrict = dw_header.getItemString(1, "billingdistrict")
+				ls_billingSubdivisionCode = dw_header.getItemString(1, "billingSubdivisionCode")
+				ls_billingBarangayCode = dw_header.getItemString(1, "billingBarangayCode")
+				ls_billingMunicipalityCode = dw_header.getItemString(1, "billingMunicipalityCode")
+				ls_billingProvinceCode = dw_header.getItemString(1, "billingProvinceCode")
+				
+				ls_servicehouseno = dw_header.getItemString(1, "servicehouseno")
+				ls_serviceblockno = dw_header.getItemString(1, "serviceblkno")
+				ls_servicelotno = dw_header.getItemString(1, "servicelotno")
+				ls_servicestreetname = dw_header.getItemString(1, "servicestreetname")
+				ls_serviceBldgCompApartmentName = dw_header.getItemString(1, "servicebldgname")
+				ls_servicepurok = dw_header.getItemString(1, "servicepurokno")
+				ls_servicephase = dw_header.getItemString(1, "servicephaseno")
+				ls_servicedistrict = dw_header.getItemString(1, "servicedistrict")
+				ls_serviceSubdivisionCode = dw_header.getItemString(1, "serviceSubdivisionCode")
+				ls_serviceBarangayCode = dw_header.getItemString(1, "serviceBarangayCode")
+				ls_serviceMunicipalityCode = dw_header.getItemString(1, "serviceMunicipalityCode")
+				ls_serviceProvinceCode = dw_header.getItemString(1, "serviceProvinceCode")
+				
+				if not luo_subscriber.setAcctNo(ls_acctno) then
+				guo_func.msgbox("Warning!",luo_subscriber.lastSqlCode + "~r~n" + &
+									luo_subscriber.lastSqlErrText)
+				return -1
+				end if
+				
+				update arAcctSubscriber
+				set	 firstName 					= :ls_firstname,   
+						middleName 			= :ls_middlename,   
+						motherMaidenName 	= :ls_mothermaidenname,   
+						lastName 				= :ls_lastname,   
+						sex 						= :ls_sex,   
+						citizenshipCode 		= :ls_citizenship,   
+						birthDate 				= :ldt_date,   
+						civilStatus 				= :ls_civilstatus,   
+						telNo 						= :ls_telno,   
+						mobileNo 				= :ls_mobileno,   
+						mobileNo2 				= :ls_mobileno2, 
+						mobileNo3 				= :ls_mobileno3, 
+						faxNo						= :ls_faxno,   
+						emailAddress 			= :ls_emailaddress,
+						emailAddress2 			= :ls_emailaddress2,
+						emailAddress3 			= :ls_emailaddress3,
+						nameofcompany	     = :ls_nameofcompany,
+						Guarantor                  = :Ls_Guarantor,
+				         spousename              =:ls_spousename,
+						occupancyrate           =:ll_occupancyrate,	
+						numberofrooms		=:ll_numberofrooms
+				 	where acctno = :ls_acctno
+					and divisionCode = :gs_divisionCode
+					and companyCode = :gs_companyCode
+				using sqlca;
+				if sqlca.sqlcode <> 0 then
+					guo_func.msgbox("Error in Update arAcctSubscriber",sqlca.sqlerrtext)	
+					return -1
+				end if
+				
+				insert into aracctsubscriberhis
+							 (acctno,
+							  occupancyrate,
+							  numberofrooms,
+							  divisionCode,
+							  companyCode,
+							  userAdd,
+							  dateAdd
+							 )
+				values (
+						 :ls_acctno,
+						 :ll_occupancyrate,
+						 :ll_numberofrooms,
+						 :gs_divisionCode,
+						 :gs_companyCode,
+						 :gs_userCode,
+						 :ldtme_dateadd
+						 )
+				using SQLCA;
+				
+				update arAcctAddress
+				set	 contactNo = :ls_billingtelNo
+				where acctno = :ls_acctno and addressTypeCode = 'BILLING'
+				and divisionCode = :gs_divisionCode
+				and companyCode = :gs_companyCode
+				using sqlca;
+				if sqlca.sqlcode <> 0 then
+					guo_func.msgbox("Error in Update arAcctAddress(BILLING)",sqlca.sqlerrtext)	
+					return -1
+				end if
+				
+				select acctNo
+				into :ls_acctNoTemp
+				from arAcctAddressTemp
+				where acctNo = :ls_acctno
+					and divisionCode = :gs_divisionCode
+					and companyCode = :gs_companyCode
+				using SQLCA;
+				
+				If isnull(ls_acctNoTemp) or ls_acctNoTemp = "" then
+				
+					insert into arAcctAddressTemp
+					( 		tranNo,
+							acctNo,
+							addressTypeCode,
+							isDefaultServiceAdd,
+							lotNo,
+							blkNo,
+							phaseNo,
+							district,
+							subdivisionCode,
+							barangayCode,
+							municipalityCode,
+							provinceCode,
+							countryCode,
+							zipCode,
+							serviceLessorOwnerName,
+							serviceLessorOwnerContactNo,
+							serviceYearsResidency,
+							serviceExpirationDate,
+							serviceHomeOwnerShip,
+							streetName,
+							bldgName,
+							roomNo,
+							floorNo,
+							contactNo,
+							designation,
+							contactName,
+							houseNo,
+							purokNo,
+							confirmed,
+							companyCode,
+							divisionCode,
+							tranDate,
+							oldCompleteAddress)
+					select :ls_tranno, 
+							acctNo,
+							addressTypeCode,
+							isDefaultServiceAdd,
+							:ls_servicelotno,
+							:ls_serviceblockno,
+							:ls_servicephase,
+							:ls_servicedistrict,
+							:ls_serviceSubdivisionCode,
+							:ls_serviceBarangayCode,
+							:ls_serviceMunicipalityCode,
+							:ls_serviceProvinceCode,
+							countryCode,
+							zipCode,
+							serviceLessorOwnerName,
+							serviceLessorOwnerContactNo,
+							serviceYearsResidency,
+							serviceExpirationDate,
+							serviceHomeOwnerShip,
+							:ls_servicestreetname,
+							:ls_serviceBldgCompApartmentName,
+							roomNo,
+							floorNo,
+							:ls_billingtelno,
+							designation,
+							:ls_billingcontactname,
+							:ls_servicehouseno,
+							:ls_servicepurok,
+							'N',
+							companyCode,
+							divisionCode,
+							getDate(),
+							:ls_oldCompleteAddress
+							from arAcctAddress
+					where acctNo = :ls_acctno
+					and addressTypeCode = 'SERVADR1'
+					and divisionCode = :gs_divisionCode
+					and companyCode = :gs_companyCode
+					using SQLCA;
+					if sqlca.sqlcode <> 0 then
+						guo_func.msgbox("Error in inserting address",sqlca.sqlerrtext)	
+						return -1
+					end if
+					
+					insert into arAcctAddressTemp
+					( 		tranNo,
+							acctNo,
+							addressTypeCode,
+							isDefaultServiceAdd,
+							lotNo,
+							blkNo,
+							phaseNo,
+							district,
+							subdivisionCode,
+							barangayCode,
+							municipalityCode,
+							provinceCode,
+							countryCode,
+							zipCode,
+							serviceLessorOwnerName,
+							serviceLessorOwnerContactNo,
+							serviceYearsResidency,
+							serviceExpirationDate,
+							serviceHomeOwnerShip,
+							streetName,
+							bldgName,
+							roomNo,
+							floorNo,
+							contactNo,
+							designation,
+							contactName,
+							houseNo,
+							purokNo,
+							confirmed,
+							companyCode,
+							divisionCode,
+							tranDate,
+							oldCompleteAddress)
+					select :ls_tranno,
+							acctNo,
+							addressTypeCode,
+							isDefaultServiceAdd,
+							:ls_billinglotno,
+							:ls_billingblockno,
+							:ls_billingphase,
+							:ls_billingdistrict,
+							:ls_billingSubdivisionCode,
+							:ls_billingBarangayCode,
+							:ls_billingMunicipalityCode,
+							:ls_billingProvinceCode,
+							countryCode,
+							zipCode,
+							serviceLessorOwnerName,
+							serviceLessorOwnerContactNo,
+							serviceYearsResidency,
+							serviceExpirationDate,
+							serviceHomeOwnerShip,
+							:ls_billingstreetname,
+							:ls_billingBldgCompApartmentName,
+							roomNo,
+							floorNo,
+							:ls_billingtelno,
+							designation,
+							:ls_billingcontactname,
+							:ls_billinghouseno,
+							:ls_billingpurok,
+							'N',
+							companyCode,
+							divisionCode,
+							getDate(),
+							:ls_oldCompleteAddress
+					from arAcctAddress
+					where acctNo = :ls_acctno
+					and addressTypeCode = 'BILLING'
+					and divisionCode = :gs_divisionCode
+					and companyCode = :gs_companyCode
+					using SQLCA;
+					if sqlca.sqlcode <> 0 then
+						guo_func.msgbox("Error in inserting address",sqlca.sqlerrtext)	
+						return -1
+					end if
+				
+				else
+				
+					
+					
+					update arAcctAddressTemp
+					set 	contactNo 			= :ls_billingtelNo,
+							contactName		= :ls_billingName,
+							HouseNo 			= :ls_billinghouseno,   
+							StreetName 		= :ls_billingstreetname,   
+							LotNo 				= :ls_billinglotno,   
+							BlkNo 					= :ls_billingblockno,   
+							BldgName 			= :ls_billingBldgCompApartmentName,
+							PhaseNo 				= :ls_billingphase,   
+							District 				= :ls_billingdistrict,   
+							PurokNo 				= :ls_billingpurok,   
+							SubdivisionCode 	= :ls_billingSubdivisionCode,
+							BarangayCode 		= :ls_billingBarangayCode,
+							MunicipalityCode 	= :ls_billingMunicipalityCode,
+							ProvinceCode		= :ls_billingProvinceCode,
+							confirmed			= 'N',
+							oldCompleteAddress = :ls_oldCompleteAddress
+					where acctno = :ls_acctno and addressTypeCode = 'BILLING'
+						and divisionCode = :gs_divisionCode
+						and companyCode = :gs_companyCode
+					using sqlca;
+					if sqlca.sqlcode <> 0 then
+						guo_func.msgbox("Error in Update arAcctAddressTemp(BILLING)",sqlca.sqlerrtext)	
+						return -1
+					end if
+					
+					update arAcctAddressTemp
+					set		contactNo 			= :ls_telno,
+							contactName		= :ls_subsname,
+							HouseNo 			= :ls_serviceHouseNo,   
+							StreetName 		= :ls_servicestreetname,   
+							BlkNo 					= :ls_serviceblockno,   
+							PhaseNo 				= :ls_servicephase,   
+							District 				= :ls_servicedistrict,   
+							PurokNo 				= :ls_servicepurok,   
+							SubdivisionCode 	= :ls_serviceSubdivisionCode,
+							BarangayCode 		= :ls_serviceBarangayCode,
+							MunicipalityCode 	= :ls_serviceMunicipalityCode,
+							ProvinceCode		= :ls_serviceProvinceCode,
+							BldgName 			= :ls_serviceBldgCompApartmentName,
+							LotNo 				= :ls_servicelotno,
+							confirmed			= 'N',
+							oldCompleteAddress = :ls_oldCompleteAddress
+					where acctno = :ls_acctno and addressTypeCode = 'SERVADR1'
+						and divisionCode = :gs_divisionCode
+						and companyCode = :gs_companyCode
+					using sqlca;
+					if sqlca.sqlcode <> 0 then
+						guo_func.msgbox("Error in Update arAcctAddressTemp(SERVADR1)",sqlca.sqlerrtext)	
+						return -1
+					end if
+					
+				end if
+				
+				update arAcctAddress 
+				set lastInfoUpdate = sysdate
+				where acctno = :ls_acctno
+				and divisionCode = :gs_divisionCode
+						and companyCode = :gs_companyCode
+					using sqlca;
+				if sqlca.sqlcode <> 0 then
+						guo_func.msgbox("Error in Update arAcctAddress(SERVADR1/BILLING)",sqlca.sqlerrtext)	
+						return -1
+					end if
+				
+				if not guo_func.set_number('EDITADDTEMP', ll_tranno) then
+					return -1
+				end if
+				guo_func.msgbox("Updating","Successfully Updated")
+				return 0
+			
+			--END BUTTON SAVE	
+				
+		elseif dwo.name = 'b_aroth' then
+				
+			string ls_arothacctno, ls_arothacctname
+			str_search str_s
+			
+			str_s.s_dataobject = "d_search_arothers"
+			str_s.s_return_column = "acctno"
+			str_s.s_title = "Search For Other Account"
+			
+			--QUERY SEARCH b_aroth FOR d_search_arothers (Update AR-Other Account)
+			
+			SELECT acctNo, acctName, acctAddress
+			 FROM vw_search_arOthers   
+			where ( acctNo like '%' || :as_search || '%' or upper(acctName) like '%' || :as_search || '%' ) and 
+			         ( currencyCode = :as_currency OR  :as_currency = '' OR     :as_currency is null)  and
+			       ( vw_search_arOthers.companyCode = :as_companyCode ) and
+			       ( vw_search_arOthers.divisionCode = :as_divisionCode )
+			       
+			--END QUERY
+			
+			openwithparm(w_search_accounts,str_s.s_dataobject)
+		
+			ls_arothacctno = trim(message.stringparm)
+		
+			if not isNull(ls_arothacctno) and ls_arothacctno <> '' then
+				
+				select acctname 
+				into :ls_arothacctname
+				from araccountmaster
+				where  acctNo = :is_acctNo
+				and    companyCode = :gs_companyCode
+				and    divisionCode = :gs_divisionCode			using  SQLCA;	
+				if SQLCA.SQLCode <> 0 then
+					guo_func.MsgBox('SM-0000001','Error encountered in select [arAccountMaster]...' + &
+										 '~r~n~r~nSQL Error Code : ' + string(SQLCA.SQLCode) + &
+										 '~r~nSQL Error Text : ' + SQLCA.SQLErrText)
+										 
+				end if
+				
+				update araccountmaster
+				set    arothacctno = :ls_arothacctno 
+				where  acctNo = :is_acctNo
+				and    companyCode = :gs_companyCode
+				and    divisionCode = :gs_divisionCode	
+				using  SQLCA;	
+				if SQLCA.SQLCode <> 0 then
+					guo_func.MsgBox('SM-0000001','Error encountered while updating [arAccountMaster]...' + &
+										 '~r~n~r~nSQL Error Code : ' + string(SQLCA.SQLCode) + &
+										 '~r~nSQL Error Text : ' + SQLCA.SQLErrText)
+					rollback using SQLCA;
+				else
+					guo_func.MsgBox('Congratulations...','You have successfully updated this record...')
+					commit using SQLCA;
+				end if	
+			
+				this.setitem(1,'arothacctno',ls_arothacctno)
+				this.setitem(1,'arothacctname',ls_arothacctname)
+			end if
+		
+		end if
+
+
+	--END 
 
 	
 	--QUERY TAB PAYMENT
