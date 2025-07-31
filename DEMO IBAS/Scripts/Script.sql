@@ -16,6 +16,13 @@ WHERE USERNAME = '????'
 
 SELECT * FROM AGENTMASTER a WHERE a.AGENTCODE ='AGT001'
 
+SELECT * FROM COLLECTORMASTER c WHERE c.DIVISIONCODE ='ISG' AND c.COMPANYCODE = 'COMCL'
+
+SELECT COLLECTORCODE, COLLECTORNAME, COLLECTORTYPECODE,
+                                      ACTIVE,PRINTDOCUMENT,COMPANYCODE, DIVISIONCODE
+                          FROM COLLECTORMASTER
+                          WHERE COLLECTORCODE = '88001' AND COMPANYCODE = 'COMCL' AND DIVISIONCODE = 'NCRNT'
+  SELECT  collectorTypeMaster.collectorTypeName ,           collectorTypeMaster.collectorTypeCode     FROM collectorTypeMaster    
 
 SELECT  collectiontranhdr.tranno ,
 		  collectiontranhdr.trandate ,
