@@ -31,4 +31,4 @@ SELECT  collectiontranhdr.tranno ,
 		  and  ( collectiontranhdr.acctno = '001205' )  ;
         
         
-       
+   SELECT * FROM ARACCTSUBSCRIBER a WHERE a.OLDACCTNO  = '001205'    
