@@ -30,7 +30,41 @@ SELECT  applofexttranhdr.tranno ,
 			  0 noOfSTB,  '' packageCode, ''packageName, '' modeofpayment, '' noofmonths, '' installtype, '' is_conversion
         FROM applofexttranhdr 
         
-        --SET DATA HEADER FROM 
+        --SEARCH ACCTNO :
+        
+        str_s.serviceType = is_serviceType
+		str_s.s_dataobject = "dw_aracct_russ"
+		str_s.s_return_column = "acctno"
+		str_s.s_title = "Search For Subscribers"
+		
+		--QUERY SEARCH ACCTNO
+		
+		select aracctsubscriber.acctno,
+ 					   aracctsubscriber.subscribername,
+		arAcctSubscriber.subscribername,   
+				vw_arAcctAddress.contactNo,   
+				arAcctSubscriber.mobileno,   
+				vw_arAcctAddress.municipalityCode,   
+				arAcctSubscriber.packagecode,   
+				arAcctSubscriber.subscriberstatuscode,   
+				vw_arAcctAddress.completeAddress,
+		 subscriberStatusMaster.subscriberStatusName,
+		      arPackageMaster.packageName
+								 from
+								 aracctsubscriber
+		 inner join vw_arAcctAddress 
+				   on  vw_arAcctAddress.acctNo = arAcctSubscriber.acctNo
+		            and vw_arAcctAddress.addressTypeCode = 'SERVADR1' 
+		            and vw_arAcctAddress.divisionCode = arAcctSubscriber.divisionCode
+		            and vw_arAcctAddress.companyCode = arAcctSubscriber.companyCode
+		inner join arPackageMaster  
+				   on  arPackageMaster.packageCode = arAcctSubscriber.packageCode
+		            and arPackageMaster.divisionCode = arAcctSubscriber.divisionCode
+		            and arPackageMaster.companyCode = arAcctSubscriber.companyCode
+		inner join subscriberStatusMaster 
+				   on  subscriberStatusMaster.subscriberstatuscode = arAcctSubscriber.subscriberstatuscode
+				   
+		--FILTER BY ACCTNO , DIVISION CODE, COMPANY CODE		   
         
         openwithparm(w_search_subscriber,str_s)
 
