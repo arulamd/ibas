@@ -76,5 +76,42 @@ SELECT  collectiontranhdr.tranno ,
   from currencyMaster
  where currencyCode = :as_currencyCode
  
- 
+
  SELECT * FROM SYSTRANSACTIONPARAM s 
+ 
+ SELECT * FROM SUBSINITIALPAYMENT s 
+ 
+ SELECT * FROM ARTYPEMASTER a 
+ 
+ SELECT * FROM (SELECT a.*, ROWNUM AS RNUM FROM (SELECT * FROM (SELECT 
+                        sysTransactionParam.tranTypeName,
+                        arTypeMaster.arTypeName,
+                        subsInitialPayment.tranNo,
+                        subsInitialPayment.tranDate,
+                        subsInitialPayment.priority,
+                        subsInitialPayment.amount,
+                        subsInitialPayment.paidAmt,
+                        subsInitialPayment.processed,
+                        subsInitialPayment.cancelled
+                 FROM subsInitialPayment JOIN arTypeMaster 
+                        ON arTypeMaster.arTypeCode = subsInitialPayment.arTypeCode 
+                        AND arTypeMaster.divisionCode = subsInitialPayment.divisionCode 
+                        AND arTypeMaster.companyCode = subsInitialPayment.companyCode JOIN sysTransactionParam       
+                        ON sysTransactionParam.tranTypeCode = subsInitialPayment.tranTypeCode 
+                        AND sysTransactionParam.divisionCode = subsInitialPayment.divisionCode 
+                        AND sysTransactionParam.companyCode = subsInitialPayment.companyCode 
+                 WHERE subsInitialPayment.acctNo = '168550' AND subsInitialPayment.companyCode = 'COMCL'
+                 AND subsInitialPayment.divisionCode = 'ISG' ORDER BY subsInitialPayment.tranDate ASC) s) a  WHERE ROWNUM <= 10) WHERE RNUM > 0
+                 
+                 
+                 SELECT processed, SUM(amount) AS amount, SUM(paidamt) AS paid_amt FROM subsInitialPayment JOIN arTypeMaster
+                        ON arTypeMaster.arTypeCode = subsInitialPayment.arTypeCode
+                        AND arTypeMaster.divisionCode = subsInitialPayment.divisionCode
+                        AND arTypeMaster.companyCode = subsInitialPayment.companyCode JOIN sysTransactionParam       
+                        ON sysTransactionParam.tranTypeCode = subsInitialPayment.tranTypeCode
+                        AND sysTransactionParam.divisionCode = subsInitialPayment.divisionCode
+                        AND sysTransactionParam.companyCode = subsInitialPayment.companyCode 
+                        WHERE subsInitialPayment.acctNo = '168550' AND subsInitialPayment.companyCode = 'COMCL'
+                        AND subsInitialPayment.divisionCode = 'ISG'
+                        GROUP BY processed
+                        --ORDER BY subsInitialPayment.TRANDATE  ASC

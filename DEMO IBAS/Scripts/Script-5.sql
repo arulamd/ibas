@@ -230,3 +230,39 @@ FROM arAcctSubscriber
                         ON subscriberStatusMaster.subscriberstatuscode = arAcctSubscriber.subscriberstatuscode       
                 WHERE 1=1 AND arAcctSubscriber.divisionCode = 'NCRNT' AND arAcctSubscriber.companyCode = 'COMCL'
                 AND LOWER(arAcctSubscriber.acctNo ) LIKE '%002502%'
+                
+                
+                
+    SELECT * FROM (
+                SELECT a.*, ROWNUM rnum FROM (
+                        SELECT trandate, tranno, particulars, credit, debit, 0.00 as balance, dateadd
+                        FROM vw_subsLedgerAR
+                        WHERE acctno = '168550'
+                          AND divisionCode = 'ISG'
+                          AND companyCode = 'COMCL'
+                        ORDER BY trandate ASC, dateadd ASC
+                ) a
+                WHERE ROWNUM <= 10
+        )
+        WHERE rnum > 0
+        
+        SELECT * FROM (
+                SELECT a.*, ROWNUM rnum FROM (
+                        SELECT trandate, tranno, particulars, credit, debit, 0.00 as balance
+                        FROM vw_subsLedgerSubsAdv
+                        WHERE acctno = '168550'
+                          AND divisionCode = 'ISG'
+                          AND companyCode = 'COMCL'
+                        ORDER BY trandate ASC
+                ) a
+                WHERE ROWNUM <= 10
+        )
+        WHERE rnum > 0
+        
+        SELECT credit, debit
+                        FROM vw_subsLedgerSubsAdv
+                        WHERE acctno = '168550'
+                          AND divisionCode = 'ISG'
+                          AND companyCode = 'COMCL'
+                        ORDER BY trandate ASC
+                        FETCH FIRST 10 ROWS ONLY

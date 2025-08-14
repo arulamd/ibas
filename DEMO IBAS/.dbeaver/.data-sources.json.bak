@@ -75,21 +75,20 @@
 				"auth-model": "oracle_native"
 			}
 		},
-		"oracle_thin-1982fca75f1-58e5660854f71539": {
+		"oracle_thin-1982fd571a6-3f8d13dae0bf61b8": {
 			"provider": "oracle",
 			"driver": "oracle_thin",
-			"name": "ORCL",
+			"name": "IBAS_CLONE_REPLICA",
 			"save-password": true,
 			"configuration": {
-				"host": "dbibasreplica.converge.myhsid.comlocalhost",
-				"port": "1521",
-				"database": "ORCL",
-				"url": "jdbc:oracle:thin:@//dbibasreplica.converge.myhsid.comlocalhost:1521/ORCL",
+				"database": "IBAS_CLONE_REPLICA",
+				"url": "jdbc:oracle:thin:@(DESCRIPTION \u003d (ADDRESS \u003d (PROTOCOL \u003d TCP)(HOST \u003d dbibasreplica.converge.myhsid.com)(PORT \u003d 1521)) (CONNECT_DATA \u003d (SERVER \u003d DEDICATED) (SERVICE_NAME \u003d ibas) ) )",
 				"configurationType": "MANUAL",
 				"type": "dev",
 				"closeIdleConnection": true,
 				"provider-properties": {
-					"@dbeaver-connection-type@": "BASIC",
+					"@dbeaver-connection-type@": "TNS",
+					"@dbeaver-tns-path@": "",
 					"@dbeaver-sid-service@": "SERVICE"
 				},
 				"auth-model": "oracle_native"
