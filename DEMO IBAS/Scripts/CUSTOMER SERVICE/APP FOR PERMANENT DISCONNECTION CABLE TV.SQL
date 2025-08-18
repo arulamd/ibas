@@ -1264,6 +1264,122 @@ choose case ls_search
 		
 		uf_prepare_required_initial_payment()
 		
+		--VALIDASI UF_PREAPATE_REQUIRED_INITIAL_PAYMENT
+		
+		string 	ls_subsTypeCode, ls_packageCode, ls_chargeTypeCode, ls_acquisitionTypeCode, ls_arTypeCode
+			long 		ll_rows, ll_success
+			decimal	ld_penalty
+			int      li_priority
+			
+			ls_subsTypeCode  = iuo_subscriber.subsTypeCode
+			ls_packageCode = iuo_subscriber.packageCode
+			ls_chargeTypeCode = iuo_subscriber.chargeTypeCode
+			
+			--==================================================
+			--let's compute for the penalty first
+			-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+			if not iuo_subscriber.computeForPenaltyApplyPD(ls_arTypeCode, ld_penalty) then
+				guo_func.msgbox('Warning!', iuo_subscriber.lastSQLCode + '~r~n' + iuo_subscriber.lastSQLErrText)
+				return -1
+			end if
+			
+			if not f_getArTypePriority(ls_arTypeCode, li_priority) then
+				guo_func.msgbox('Warning!', 'Unable To get Priority of Ar-Type [' + trim(ls_arTypeCode) + ']')	
+				return -1
+			end if	
+			
+			if ld_penalty > 0 then
+				ll_rows = idw_ReqInitPayment.InsertRow(0)
+				idw_ReqInitPayment.SetItem(ll_rows, 'arTypeCode', ls_arTypeCode)
+				idw_ReqInitPayment.SetItem(ll_rows, 'amount', ld_penalty)
+				idw_ReqInitPayment.SetItem(ll_rows, 'priority', li_priority) // I added this
+			end if
+			--==================================================
+			-- end
+			--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+			
+			ll_rows = idw_ReqInitPayment.rowCount()
+			
+			if not isnull(ls_subsTypeCode) then
+				if not isnull(ls_packageCode) then
+					if not isnull(ls_chargeTypeCode) then				
+							if ll_rows > 0 then
+								ll_success = uf_compute_req_init_payment_pd(	&
+										ls_subsTypeCode, &
+										ls_packageCode, &
+										ls_chargeTypeCode, &
+			 							id_mLineExtPermanentDiscFee, &
+										idw_ReqInitPayment )
+								
+								--VALIDASI UF_COMPUTE_REQ_INIT_PAYMENT_PD
+										
+								
+								--subscriberType based fees
+								--mLineExtPermanentDiscFee
+								decimal{2} ld_mLineExtPermanentDiscFee
+								
+								
+								// acquisitionTypeCode based fees
+								long ll_row
+								decimal{2} ld_amount_PDF
+								
+								ld_amount_PDF = 0.00
+								ld_amount_PDF = ad_mlineextpermanentdiscfee
+								
+								--chargeType based fees (discounts)
+								
+								--PDF - Permanent Disconnection Fees Required Initial Payment
+								decimal{2} ld_percentDiscount, ld_amountDiscount
+								ld_percentDiscount = 0.00 
+								ld_amountDiscount = 0.00
+								
+								SELECT 	percentDiscount
+								INTO 		:ld_percentDiscount
+								FROM 		chargeTypeDiscountMaster
+								WHERE 	chargeTypeCode = :as_chargeTypeCode and arTypeCode = 'PDF'
+								and divisionCode = :gs_divisionCode
+								and companyCode = :gs_companyCode
+								USING SQLCA;			
+								If SQLCA.SQLcode = -1 then
+									messagebox('SM-0000001',"select in chargeTypeMaster SQLCode    : "+string(SQLCA.SQLCode) + "SQLErrText : " + SQLCA.SQLErrText)
+									return -1
+								end if
+								
+								if isnull(ld_percentDiscount) then ld_percentDiscount = 0.00 
+								if ld_percentDiscount > 0.00 then
+									ld_amountDiscount = ( ld_amount_PDF * (ld_percentDiscount/100) )
+									ld_amount_PDF = ld_amount_PDF - ld_amountDiscount
+									if ld_amount_PDF < 0.00 then 
+										ld_amount_PDF = 0.00
+									end if
+								end if
+								
+								
+								--update datawindow for required initial payment
+								ll_row = adw_ReqInitPayment.find("arTypeCode='PDF'",1,adw_ReqInitPayment.rowCount())		
+								adw_ReqInitPayment.scrollToRow( ll_row )						
+								if ll_row > 0 then
+									adw_ReqInitPayment.setItem( ll_row, "amount", ld_amount_PDF )
+								end if		
+								
+								adw_ReqInitPayment.acceptText()
+								
+								
+								return 0
+
+		
+										
+								--END VALIDASI	UF_COMPUTE_REQ_INIT_PAYMENT_PD
+									
+							end if			
+					end if
+				end if
+			end if
+								
+			return 0
+		
+		--END VALIDAS UF_PREAPATE_REQUIRED_INITIAL_PAYMENT
+		
 end choose
 return 
 
@@ -2540,7 +2656,100 @@ for ll_loop = 1 to ll_rows
 	if isnull(ls_serialno) or ls_serialno ='' then continue
 	if not luo_stb.setSerialNo(ls_serialNo) then
 		guo_func.msgbox("Warning!", luo_stb.lastSQLCode + "~r~n" + luo_stb.lastSQLErrText)		
-	end if
+	end IF
+	
+	-VALIDASI IUO_STB.SETSERIALNO
+		
+		serialNo = trim(as_serialno)
+
+			--check if existing
+			if gb_sharedInventory then
+				select a.itemCode, a.barCode, a.controlNo, a.locationCode, a.serialNoStatusCode, a.acctNo, a.boxIdNo, b.itemName, 
+							b.productLineCode, b.model, b.voltage, a.macAddress, isDigital
+				  into :itemCode, :barCode, :controlNo, :locationCode, :statusCode, :acctNo, :boxIdNo, :itemName, 
+							:productLineCode, :model, :voltage, :macAddress, :isDigital
+				  from serialNoMaster a, itemMaster b
+				 where a.itemCode = b.itemCode
+					and a.divisionCode = :gs_divisionCode
+					and a.companyCode = b.companyCode
+					and a.serialNo = :serialNo
+					and b.itemIsSTB = 'Y'
+					and a.companyCode = :gs_companyCode
+					and a.divisionCode in (select divisionCode
+											     from   sysDivisionGroupMembersIC
+												  where  divisionGroupCode = :gs_divisionGroupCode)
+				 using SQLCA;
+			else
+				select a.itemCode, a.barCode, a.controlNo, a.locationCode, a.serialNoStatusCode, a.acctNo, a.boxIdNo, b.itemName, 
+							b.productLineCode, b.model, b.voltage, a.macAddress, isDigital
+				  into :itemCode, :barCode, :controlNo, :locationCode, :statusCode, :acctNo, :boxIdNo, :itemName, 
+							:productLineCode, :model, :voltage, :macAddress, :isDigital
+				  from serialNoMaster a, itemMaster b
+				 where a.itemCode = b.itemCode
+					and a.divisionCode = :gs_divisionCode
+					and a.companyCode = :gs_companyCode
+					and b.companyCode = :gs_companyCode
+					and a.serialNo = :serialNo
+					and b.itemIsSTB = 'Y'
+					and a.companyCode = :gs_companyCode
+				 using SQLCA;	
+			end if	
+			if SQLCA.sqlcode < 0 then
+				lastSQLCode		= string(SQLCA.sqlcode)
+				lastSQLErrText = SQLCA.sqlerrtext
+				return FALSE
+			elseif SQLCA.sqlcode = 100 then
+				lastSQLCode		= string(SQLCA.sqlcode)
+				lastSQLErrText = "The SetTOP Box with serial number " + serialNo + " does not exist!"
+				return FALSE
+			end if
+			
+			if not isnull(acctNo) and acctNo <> '' then
+				select subscriberName
+				  into :subscriberName
+				  from arAcctSubscriber
+				 where acctNo = :acctNo
+				 and   companyCode = :gs_companyCode
+				 and   divisionCode = :gs_divisionCode
+				 using SQLCA;
+				if SQLCA.sqlcode < 0 then
+					lastSQLCode		= string(SQLCA.sqlcode)
+					lastSQLErrText = SQLCA.sqlerrtext
+					return FALSE
+				elseif SQLCA.sqlcode = 100 then
+					lastSQLCode		= '-2'
+					lastSQLErrText = 'This SetTop Box was assigned to Acct. #: ' + acctNo + '~r~n~r~n' + &
+											'However, the system was unable to get its corresponding subscriber name' + '~r~n~r~n' + &
+											'You must report this to your supervisor immediately.'
+					return FALSE
+				end if	
+			end if
+			
+			currAcctNo = acctNo
+			isCaCard = 'N'
+			if isnull(isDigital) then isDigital = 'N'
+			
+			select acquisitionTypeCode, acquiredBefore2003, cpeStatusCode, packageCode, isPrimary 
+			  into :acquisitionTypeCode, :acquiredBefore2003, :subscriberCPEStatus, :packageCode, :isPrimary
+			  from subscriberCPEMaster
+			 where acctNo = :acctNo
+			   and serialNo = :serialNo
+				and companyCode = :gs_companyCode
+				and divisionCode = :gs_divisionCode
+			 using SQLCA;
+			if SQLCA.sqlcode < 0 then
+				lastSQLCode		= string(SQLCA.sqlcode)
+				lastSQLErrText = SQLCA.sqlerrtext
+				return FALSE
+			elseif SQLCA.sqlcode = 100 then
+				acquisitionTypeCode = ''
+				subscriberCPEStatus = ''
+				return TRUE 
+			end if
+			
+			return TRUE
+		
+		--END VALIDASI IUO_STB.SETSERIALNO
 
 	ls_itemCode 		= luo_stb.itemCode
 	ll_BoxIDNo 			  = luo_stb.BoxIdNo	
@@ -2638,7 +2847,398 @@ for ll_loop = 1 to ll_rows
 				
 				if not trigger event ue_deactivate_digipick(luo_stb, ls_acctNo, ls_tran) then
 					return -1
-				end if
+				end IF
+				
+				--validasi ue_deactivate_digipick
+				
+				long   ll_loop, ll_rows, ll_daysConsumption, ll_noOfDaysOfTheMonth
+					string ls_packageCode, ls_itemCode, ls_serialNo, ls_tranNo, ls_caItemCode, ls_caSerialNo
+					dec{2} ld_totPackageMonthlyRate, ld_totPackageDailyRate, ld_totExtendedAmount
+					dec{2} ld_packageMonthlyRate, ld_packageDailyRate, ld_extendedAmount
+					
+					long 	 ll_tranNo
+					string ls_deacTranNo
+					
+					
+					datastore 			 ds_digiPickPackage 
+					ds_digiPickpackage = create datastore
+					ds_digiPickpackage.DataObject = "ds_subs_digipickpackage"
+					ds_digiPickpackage.setTransObject(SQLCA)
+					
+					--validas query ds_subs_digipickpackage
+					
+					 SELECT subsSTBSpChanMaster.acctNo,   
+			         subsSTBSpChanMaster.tranNo,   
+			         subsSTBSpChanMaster.PackageCode,   
+			         subsSTBSpChanMaster.serialNo,   
+			         subsSTBSpChanMaster.itemCode,   
+			         subscriberCPEMaster.caSerialNo,   
+			         subscriberCPEMaster.caItemCode  
+			    FROM subsSTBSpChanMaster,   
+			         subscriberCPEMaster  ,
+					arpackagemaster
+			   WHERE ( subscriberCPEMaster.acctno = subsSTBSpChanMaster.acctNo ) and  
+			         ( subscriberCPEMaster.serialNo = subsSTBSpChanMaster.serialNo ) and  
+			         ( subscriberCPEMaster.itemCode = subsSTBSpChanMaster.itemCode ) and  
+					( arpackagemaster.packagecode = subsSTBSpChanMaster.packagecode) and
+			         ( ( subsSTBSpChanMaster.acctNo = :as_acctNo ) AND  
+			         ( subsSTBSpChanMaster.serialNo = :as_serialNo ) AND  
+					( arpackagemaster.isdigital = 'Y') and
+					( subsSTBSpChanMaster.expirationdate < getdate()) and
+			         ( subsSTBSpChanMaster.divisionCode = :as_divisionCode ) AND  
+			         ( subsSTBSpChanMaster.companyCode = :as_companyCode ) )    and
+				(subsstbspchanmaster.trantypecode = 'ADDDIGIPICK ')
+					
+					--end validasi query
+					
+					ll_rows = ds_digiPickPackage.retrieve(as_acctNo, auo_stb.serialNo, gs_divisionCode, gs_companyCode)
+					if ll_rows = 0 then
+						return true
+					end if	
+					
+					if not guo_func.get_nextnumber('DEACDIGIPICK', ll_tranNo, 'WITH LOCK') then
+						return false
+					end IF
+					
+					--VALIDASI guo_func.get_nextnumber
+					f_displayStatus("Retrieving next transaction # for " + as_trantype + "...")
+		
+						string	ls_lockedby
+						
+						if as_tranType = 'SCSREQUEST' then
+							
+							update systransactionparam
+							set recordlocked = 'N',
+							lockedusername = ''
+							where tranTypeCode = :as_tranType 
+									and divisionCode = :gs_divisionCode
+									and companyCode = :gs_companyCode
+									and  recordlocked = 'Y'
+							using SQLCA;
+							
+						end if 
+						
+						select lockedUserName
+						  		into :ls_lockedby
+						from sysTransactionParam
+						 		where tranTypeCode = :as_tranType 
+						 		and divisionCode = :gs_divisionCode
+						 		and companyCode = :gs_companyCode
+						using SQLCA;
+						if SQLCA.sqlcode = 100 then
+							guo_func.msgbox("SM-0000010", as_tranType, "")
+							f_closeStatus()
+							return false
+						elseif SQLCA.sqlcode <> 0 then
+							guo_func.msgbox("SM-0000001", "Select error in sysTransactionParam" + "~r~n" + &
+																  string(SQLCA.sqlcode) 	+ "~r~n" + &
+																  SQLCA.sqlerrtext, "")
+							f_closeStatus()
+							return false
+						end if
+						
+						if as_getmode = "WITH LOCK" then
+							do while true
+								update sysTransactionParam
+									set recordLocked = 'Y',
+										 lockedUserName = :gs_username
+								   where recordLocked = 'N' 
+								   and tranTypeCode = :as_tranType
+								   and divisionCode = :gs_divisionCode
+						 		   and companyCode = :gs_companyCode		 
+								using SQLCA;
+								if SQLCA.sqlnrows < 1 then
+									if guo_func.msgbox("SM-0000011", ls_lockedby, "") = 2 then
+										f_closeStatus()
+										return false
+						 			end if
+								else
+									exit
+								end if
+							loop
+						end if
+						
+						select lastTransactionNo, tranYear
+						      into :al_tranNo, :ii_tranYear
+						from sysTransactionParam
+						      where tranTypeCode = :as_tranType
+						      and divisionCode = :gs_divisionCode
+						 		and companyCode = :gs_companyCode
+						using SQLCA;
+						if SQLCA.sqlcode = 100 then	// record not found
+							guo_func.msgbox("SM-0000010", as_tranType, "")
+							f_closeStatus()
+							return false
+						elseif SQLCA.sqlcode <> 0 then
+							guo_func.msgbox("SM-0000001", "Select error in sysTransactionParam" + "~r~n" + &
+																  string(SQLCA.sqlcode) 	+ "~r~n" + &
+																  SQLCA.sqlerrtext, "")
+							f_closeStatus()
+							return false
+						end if
+						
+						al_tranNo = al_tranNo + 1
+						f_closeStatus()
+						
+						return TRUE
+						
+				--END guo_func.get_nextnumber
+					
+					ls_deacTranNo = string(ll_tranNo,'00000000')
+					
+					if not guo_func.set_number('DEACDIGIPICK', ll_tranNo) then
+						return false
+					end IF
+					
+					--VALIDASI SET NUMBER
+						update sysTransactionParam
+							set recordLocked = 'N',
+								 lockedUserName = '',
+								 lastTransactionNo = :al_tranno
+						where recordLocked = 'Y' 
+						       and divisionCode = :gs_divisionCode
+								and companyCode = :gs_companyCode
+								and tranTypeCode = :as_tranType
+								using SQLCA;
+						if SQLCA.sqlnrows < 1 then
+							guo_func.msgbox("SM-0000010", as_tranType 	+ "~r~n" + &
+												string(SQLCA.sqlcode) 	+ "~r~n" + &
+												SQLCA.sqlerrtext, "")
+							return false
+						elseif SQLCA.sqlcode <> 0 then
+							guo_func.msgbox("SM-0000001", "UPDATE - sysTransactionParam" + "~r~n" + &
+																  string(SQLCA.sqlcode) 	+ "~r~n" + &
+																  SQLCA.sqlerrtext, "Transaction Type: [" + as_tranType + "]")
+							return FALSE
+						end if
+						
+						commit using SQLCA;
+						
+						return TRUE
+						
+					--END set_number
+					
+					
+					integer li_billingDayOfMonth
+					if not f_getBillingDayOfMonth(li_billingDayOfMonth) then
+						is_msgNo 	= 'SM-0000001'
+						is_msgTrail = string(SQLCA.sqlCode) + '~r~n' + &
+										  SQLCA.sqlErrText
+						is_sugTrail = 'Function: f_getBillingDayOfMonth()'
+						return false
+					end IF
+					
+					--validasi f_getbillingDayOfMonth
+					select billingDayOfMonth
+					  into :ad_day
+					  from systemParameter
+					  where divisionCode = :gs_divisionCode
+					and companyCode = :gs_companyCode
+					and rownum < 2
+					using SQLCA;
+					if SQLCA.sqlCode < 0 then
+						return FALSE
+					end if
+					
+					--default to every 10th of the month
+					if isnull(ad_day) or ad_day = 0 then ad_day = 10
+					
+					return TRUE
+					
+					--end validasi f_getbillingDayOfMonth
+					
+					if integer(string(date(guo_func.get_server_date()), 'dd')) < li_billingDayOfMonth then
+						ll_daysConsumption = integer(string(date(guo_func.get_server_date()), 'dd')) - 1
+					else
+						ll_daysConsumption =	0 - guo_func.getDaysConsumedFromGivenDate(guo_func.get_server_date())
+					end IF
+					
+					--validasi getDaysConsumedFromGivenDate
+					date ldt_currentDate, ldt_noOfDays
+					long li_year, li_month, li_day, li_days
+					
+					ldt_currentDate 			= 	date(adtm_date)
+					li_year						=	year(ldt_currentDate) 
+					li_month 					=	month(ldt_currentDate) 
+					li_day						=	day(ldt_currentDate) 
+					if li_month = 12 then
+						li_year = li_year + 1
+						li_month = 1
+					else
+						li_month 					=	li_month + 1
+					end if
+					ldt_noOfDays 				=	date(li_year, li_month, 1) 
+					li_days						=	DaysAfter(ldt_currentDate, ldt_noOfDays)
+					
+					return li_days 
+				
+					--end getDaysConsumedFromGivenDate
+					
+					ll_noOfDaysOfTheMonth =	guo_func.get_month_days2(guo_func.get_server_date())
+					
+					--validasi get_month_days2
+	
+					long ll_return 
+					date ld_lastDayofNextMonth
+					integer li_month, li_year, li_nextMonth, li_nextMonthYear
+					
+					li_month = month(date(adtm_date))
+					li_year = year(date(adtm_date))
+					
+					if li_month = 12 then
+						li_nextMonth = 1
+						li_nextMonthYear = li_year + 1
+					else
+						li_nextMonth = li_month + 1
+						li_nextMonthYear = li_year
+					end if
+					
+					ld_lastDayofNextMonth = RelativeDate(date(string(li_nextMonth) + '/1/' + string(li_nextMonthYear)), -1)
+					ll_return = day(ld_lastDayofNextMonth) 
+					
+					return ll_return
+				
+					--end get_month_days2
+					
+					ld_totPackageMonthlyRate = 0
+					ld_totPackageDailyRate   = 0
+					ld_totExtendedAmount     = 0
+					
+					
+					for ll_loop = 1 to ll_rows
+						
+						ls_packageCode = ds_digiPickpackage.object.packagecode[ll_loop] 
+						ls_itemcode    = ds_digiPickpackage.object.itemcode[ll_loop]
+						ls_serialNo    = ds_digiPickpackage.object.serialno[ll_loop]
+						
+						ls_caItemCode	= ds_digiPickpackage.object.caitemcode[ll_loop]
+						ls_caSerialNo	= ds_digiPickpackage.object.caserialno[ll_loop]	
+						ls_tranNo		= ds_digiPickpackage.object.tranno[ll_loop]
+							
+						select monthlyRate into :ld_packageMonthlyRate
+						from   arpackageMaster
+						where  packageCode = :ls_packageCode
+						and    divisionCode = :gs_divisionCode
+						and    companyCode  = :gs_companyCode
+						using  SQLCA;
+						if SQLCA.SQLCode <> 0 then
+							is_msgNo 	= 'SM-0000001'
+							is_msgTrail = string(SQLCA.SQLCode) + '~r~n' + SQLCA.SQLErrText + &
+											 '~r~nerror from ue_deactivate_digipick()'+ &
+											 'select record to table [arpackageMaster]'
+							return false
+						end if		
+						
+						//ld_packageMonthlyRate   = dw_curr_pack.getItemDecimal(ll_loop,'monthlyrate')
+						ld_packageDailyRate	   = (ld_packageMonthlyRate / ll_noOfDaysOfTheMonth)
+						ld_extendedAmount		   = ld_packageDailyRate * ll_daysConsumption
+						
+						ld_totPackageMonthlyRate = ld_totPackageMonthlyRate + ld_packageMonthlyRate
+						ld_totPackageDailyRate   = ld_totPackageDailyRate + ld_packageDailyRate
+						ld_totExtendedAmount     = ld_totExtendedAmount + ld_extendedAmount
+					
+						insert into digiPickDeactivationTranDtl
+							(tranNo,
+							 packageCode,
+							 stbItemCode,
+							 stbSerialNo,
+							 caItemCode,
+							 caSerialNo,
+							 daysConsumption,
+							 packageMonthlyRate,
+							 packageDailyRate,
+							 extendedAmount,
+							 companyCode,
+							 divisionCode)
+						values
+							(:ls_deacTranNo,
+							 :ls_packageCode,
+							 :ls_itemCode,
+							 :ls_serialNo,
+							 :ls_caItemCode,
+							 :ls_caSerialNo,
+							 :ll_daysConsumption,
+							 :ld_packageMonthlyRate,
+							 :ld_packageDailyRate,
+							 :ld_extendedAmount,
+							 :gs_companyCode,
+							 :gs_divisionCode)
+						using SQLCA;	 
+						if SQLCA.SQLCode <> 0 then
+							is_msgNo			= 'SM-0000001'
+							is_msgTrail		= 'Error in SQL-INSERT [digiPickActivationTranDtl]...' + &
+												  '~r~n~r~nSQL Error Code : ' + string(SQLCA.SQLCode) + &
+												  '~r~nSQL Error Text : ' + SQLCA.SQLErrText
+							is_sugTrail	= 'error from [ue_deactivate_digipick]... Please inform your system administrator.'
+							return false
+						end if
+						
+						delete from subsSTBSpChanMaster
+						where  tranNo = :ls_tranNo
+						and    tranTypeCode = 'ADDDIGIPICK'
+						and    packageCode  = :ls_packageCode
+						and    acctNo       = :as_acctNo
+						using  SQLCA;
+						if SQLCA.SQLCode <> 0 then
+							is_msgNo 	= 'SM-0000001'
+							is_msgTrail = string(SQLCA.SQLCode) + '~r~n' + SQLCA.SQLErrText + &
+											 '~r~nerror from ue_deactivate_digipick()'+ &
+											 'delete record to table [subsSTBSpChanMaster]'
+							return false
+						end if
+						
+						
+					next
+					
+					insert into digiPickDeactivationTranHdr
+						(tranNo,
+						 tranTypeCode,
+						 refTranNo,
+						 tranDate,
+						 acctNo,
+						 userAdd,
+						 dateAdd,
+						 companyCode,
+						 divisionCode,
+						 daysConsumption,
+						 additionalPackageFee,
+						 packageMonthlyRate,
+						 packageDailyRate,
+						 extendedAmount,
+						 preferredDateStart,
+						 processed,
+						 processedByCron)
+					values
+						(:ls_deacTranNo,
+						 'PERMDISCMLX',
+						 :as_tranNo,
+						 :idt_tranDate,
+						 :as_acctNo,
+						 :gs_userName,
+						 getDate(),
+						 :gs_companyCode,
+						 :gs_divisionCode,
+						 :ll_daysConsumption,
+						 0,
+						 :ld_totPackageMonthlyRate,
+						 :ld_totPackageDailyRate,
+						 :ld_totExtendedAmount,
+						 :idt_tranDate,
+						 'N',
+						 'Y')
+					using SQLCA;	 
+					if SQLCA.SQLCode <> 0 then
+						is_msgNo			= 'SM-0000001'
+						is_msgTrail		= 'Error in SQL-INSERT [digiPickActivationTranHdr]...' + &
+											  '~r~n~r~nSQL Error Code : ' + string(SQLCA.SQLCode) + &
+											  '~r~nSQL Error Text : ' + SQLCA.SQLErrText
+						is_sugTrail	= 'error from [ue_deactivateDigiPick]... Please inform your system administrator.'
+						return false
+					end if
+					
+					return TRUE
+				
+				--end validasi ue_deactivate_digipick
 				
 			end if
 			
@@ -2751,7 +3351,49 @@ if not luo_stb.setSCSRequestTranNo() then
 	is_msgtrail = luo_stb.lastSQLCode + "~r~n" + luo_stb.lastSQLErrText
 	is_sugtrail = 'Error produced by luo_stb.setSCSRequestTranNo()'
 	return -1
-end if		
+end if	
+
+
+--VALIDASI IUO_STB.SETSCSREQUESTTRANNO
+
+if not guo_func.set_number('SCSREQUEST', scsRequestNextTranNo) then	
+	lastSQLCode = '-2'
+	lastSQLErrText = 'Could not set the next SCS Request No.'
+	Return False
+end IF
+
+	--VALIDASI SET_NUMBER
+
+		update sysTransactionParam
+			set recordLocked = 'N',
+				 lockedUserName = '',
+				 lastTransactionNo = :al_tranno
+		where recordLocked = 'Y' 
+		       and divisionCode = :gs_divisionCode
+				and companyCode = :gs_companyCode
+				and tranTypeCode = :as_tranType
+				using SQLCA;
+		if SQLCA.sqlnrows < 1 then
+			guo_func.msgbox("SM-0000010", as_tranType 	+ "~r~n" + &
+								string(SQLCA.sqlcode) 	+ "~r~n" + &
+								SQLCA.sqlerrtext, "")
+			return false
+		elseif SQLCA.sqlcode <> 0 then
+			guo_func.msgbox("SM-0000001", "UPDATE - sysTransactionParam" + "~r~n" + &
+												  string(SQLCA.sqlcode) 	+ "~r~n" + &
+												  SQLCA.sqlerrtext, "Transaction Type: [" + as_tranType + "]")
+			return FALSE
+		end if
+		
+		commit using SQLCA;
+		
+		return true
+
+	--END VALIDASI SET_NUMBER
+
+Return TRUE
+
+--END VALIDASI SETSCSREQUESTTRANNO
 
 RETURN 0
 
