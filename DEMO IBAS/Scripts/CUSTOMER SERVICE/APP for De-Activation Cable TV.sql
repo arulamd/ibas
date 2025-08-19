@@ -2737,7 +2737,7 @@ if not iuo_subscriber.getPercentDiscount('MLMSF', ld_DiscountRateMLMSF) then
 	return -1
 end IF
 
--VALIDASI GETPERCENTDISCOUNT
+--VALIDASI GETPERCENTDISCOUNT
 	
 lastMethodAccessed = 'getPercentDiscount'
 
@@ -10860,6 +10860,44 @@ end IF
 					if not f_getArTypeUnearnedAccount(as_artypecode, ls_unearnedAccount, lastSQLErrText) then
 						return FALSE
 					end IF
+					
+					--VALIDASI F_GETARTYPEUNEARNEDACCOUNT
+					
+					--==================================================
+					--NGLara | 04-26-2008
+					--This function is primarily being used by Billing
+					--computation...
+					--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+					
+					if isnull(as_arTypeCode) then
+						as_errorMsg = 'Null AR Type Code is invalid.'
+						return FALSE  
+					end if  
+					   
+					select unEarnedRevAccount
+					  into :as_glAccountCode
+					  from arTypeMaster
+					 where arTypeCode = :as_arTypeCode
+					 and divisionCode = :gs_divisionCode
+					and companyCode = :gs_companyCode
+					using SQLCA;
+					if SQLCA.sqlcode = 100 then	// record not found
+						as_errorMsg  = 'AR Type Code : [' + as_arTypeCode + '] doest not exist.'
+						return FALSE
+					elseif SQLCA.sqlcode < 0 then
+						as_errorMsg  = SQLCA.sqlerrtext
+						return FALSE
+					end if
+					
+					if isnull(as_glAccountCode) or trim(as_glAccountCode) = '' then
+						as_errorMsg = 'The AR Account obtained was empty or null. Check the AR Type Code : [' + as_arTypeCode + '] in AR Type Maintenance'
+						return FALSE
+					end if
+					
+					Return True
+
+					
+					--END VALIDASI F_GETARTYPEUNEARNERDACCOUNT
 					
 					--ALREADY NOT USE IN  postGLEntries
 					iuo_glPoster.insertGLEntryCredit('SAV-IAR-DB', '04-chrg', ls_unearnedAccount, ad_balance)

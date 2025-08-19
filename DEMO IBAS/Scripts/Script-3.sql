@@ -100,3 +100,9 @@ SELECT  collectiontranhdr.tranno ,
                 AND arTranHdr.divisionCode = 'ISG'
                 AND arTranHdr.companyCode = 'COMCL'
                 AND (artranhdr.balance <> 0 OR ? = 'Y')
+                
+                
+               SELECT cpetypecode, packagecode
+                                FROM subscriberCpeMaster
+                                WHERE serialNo = '4857544393F5ADA3'
+                                AND divisionCode = 'ISG' AND companyCode = 'COMCL'
