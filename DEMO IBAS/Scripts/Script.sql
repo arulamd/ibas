@@ -212,3 +212,11 @@ SELECT * FROM (SELECT a.*, ROWNUM AS RNUM FROM (SELECT * FROM (SELECT * FROM (SE
                         AND joTranDtlAssignedCPE.companyCode = serialNoMaster.companyCode JOIN itemMaster
                         ON itemMaster.itemCode = serialNoMaster.itemCode
                         AND serialNoMaster.companyCode = itemMaster.companyCode WHERE joTranHdr.acctNo = '038184' AND joTranDtlAssignedCPE.divisionCode = 'ISG' AND joTranDtlAssignedCPE.companyCode = 'COMCL' AND serialNoMaster.serialNoStatusCode = 'PA')) s) a  WHERE ROWNUM <= 10) WHERE RNUM > 0
+                        
+                        
+                        
+                        SELECT systransactionparam.trantypecode,systransactionparam.trantypename FROM sysfiltertrantype 
+                        JOIN systransactionparam
+                        ON sysfiltertrantype.trantypecode = systransactionparam.trantypecode
+                        AND sysfiltertrantype.companyCode = systransactionparam.companyCode
+                 WHERE sysfiltertrantype.filtertypecode = 'TRANSACT' AND sysfiltertrantype.companyCode = 'COMCL' AND systransactionparam.divisionCode = 'ISG'

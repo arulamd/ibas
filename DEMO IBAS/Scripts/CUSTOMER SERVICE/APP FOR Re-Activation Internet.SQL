@@ -1,7 +1,7 @@
-opensheetwithparm(w_application_mlineext_reactivation, 'CTV', w_mdiFrame, 0, original!)
+opensheetwithparm(w_application_reactivation, 'INET', w_mdiFrame, 0, original!)
 
-is_serviceType = message.stringParm
-is_serviceType = 'CTV'
+--EVENT OPENT FORM
+
 idw_reqInitPayment = dw_reqinitpayment
 iw_parent = this
 
@@ -10,27 +10,30 @@ idw_reqInitPayment.settransobject(SQLCA)
 
 iuo_subscriber = create uo_subscriber_def
 
+--END EVENT
+
 --QUERY FORM DW_HEADER
-SELECT  applOfReactivationTranHdr.tranno,
-		  applOfReactivationTranHdr.trandate,
-		  applOfReactivationTranHdr.acctno,
-		  applOfReactivationTranHdr.packagecode,
-		  applOfReactivationTranHdr.reconnectiontypecode,
-		  applOfReactivationTranHdr.referencejono,
-		  applOfReactivationTranHdr.noofrequiredstb,
-		  applOfReactivationTranHdr.reacfee,
-		  applOfReactivationTranHdr.reacfeediscount,
-		  applOfReactivationTranHdr.extendedfeeamount,
-		  applOfReactivationTranHdr.specialInstructions,       
-		  applOfReactivationTranHdr.applicationstatuscode,
-		  applOfReactivationTranHdr.preferreddatetimefrom,
-		  applOfReactivationTranHdr.preferreddatetimeto,
-		  applOfReactivationTranHdr.useradd,
-		  applOfReactivationTranHdr.dateadd,
-		  applOfReactivationTranHdr.chargeTypeCode,
-		  applOfReactivationTranHdr.subsUserTypeCode,
-		  applOfReactivationTranHdr.subscriberStatusCode,
-		  applOfReactivationTranHdr.subsTypeCode,
+
+SELECT  applOfReActivationTranHdr.tranno,
+		  applOfReActivationTranHdr.trandate,
+		  applOfReActivationTranHdr.acctno,
+		  applOfReActivationTranHdr.packagecode,
+		  applOfReActivationTranHdr.reconnectiontypecode,
+		  applOfReActivationTranHdr.referencejono,
+		  applOfReActivationTranHdr.noofrequiredstb,
+		  applOfReActivationTranHdr.reacfee,
+		  applOfReActivationTranHdr.reacfeediscount,
+		  applOfReActivationTranHdr.extendedfeeamount,
+		  applOfReActivationTranHdr.specialInstructions,       
+		  applOfReActivationTranHdr.applicationstatuscode,
+		  applOfReActivationTranHdr.preferreddatetimefrom,
+		  applOfReActivationTranHdr.preferreddatetimeto,
+		  applOfReActivationTranHdr.useradd,
+		  applOfReActivationTranHdr.dateadd,
+		  applOfReActivationTranHdr.chargeTypeCode,
+		  applOfReActivationTranHdr.subsUserTypeCode,
+		  applOfReActivationTranHdr.subscriberStatusCode,
+		  applOfReActivationTranHdr.subsTypeCode,
 		  0.00 stbdeposit,
 		  0.00 materialsstbadvances,
 		  0.00 installationfeesadvances,
@@ -46,34 +49,32 @@ SELECT  applOfReactivationTranHdr.tranno,
 		  '' billingaddress,
 		  0.00 monthlymlinefee,
 		  0.00 monthlyextfee,
-		  '' generalpackage,
+		  '' packageType,
 		  0 noofrooms,
 		  0.00 occupancyrate, 
 		  getdate() datelastdeactivated,
-		  getdate() datewithingraceperiod,
+		  '' datewithingraceperiod,
 		  0 noofstb,
-		  0.00 penaltyfee, 0 noOfRequiredCPE
-	  FROM applOfReactivationTranHdr    
+		  0.00 penaltyfee
+	  FROM applOfReActivationTranHdr    
+
 --END QUERY DW_HEADER
 	  
---QUERY FORM dw_reqinitpayment
-	  
-  SELECT  subsinitialpayment.acctno ,
-  subsinitialpayment.trantypecode , 
-  subsinitialpayment.artypecode ,  
-  subsinitialpayment.tranno , 
-  subsinitialpayment.trandate ,
-  subsinitialpayment.priority ,  
-  subsinitialpayment.amount
-  FROM subsinitialpayment 
-  
---END QUERY FORM dw_reqinitpayment	 
+--QUERY FORM DW_INITIALPAYMENT
+SELECT  subsinitialpayment.acctno ,
+subsinitialpayment.trantypecode , 
+subsinitialpayment.artypecode , 
+subsinitialpayment.tranno ,
+subsinitialpayment.trandate ,
+subsinitialpayment.priority ,
+subsinitialpayment.amount 
+FROM subsinitialpayment    
 
-  
- --EVENT UE_SEARCH ACCTNO
-  
- long ll_row, ll_success, ll_count
-string ls_search, ls_result, ls_acctNo, ls_packageCode, ls_joNo, ls_statusCode
+--END QUERY
+
+--EVENT UE_SEEARCH ACCTNO
+long ll_row, ll_success, ll_count
+string ls_search, ls_result, ls_acctNo, ls_packageCode
 string ls_subscriberName, ls_serviceAddress, ls_billingAddress
 string ls_package, ls_generalPackage
 string ls_subscriberStatus, ls_chargeType
@@ -81,7 +82,7 @@ string ls_subscriberType, ls_subscriberUserType
 decimal{2} ld_occupancyRate, ld_monthlyMlineFee, ld_monthlyExtFee, ld_amount_REACF
 long ll_noOfExt, ll_noOfSTB, ll_noOfStbDeactivated, ll_noOfAssingedSTB
 datetime ldtme_dateofdeactivation
-string ls_subsTypeCode, ls_subscriberStatusName,ls_subscode
+string ls_subsTypeCode, ls_subscriberStatusName
 str_search str_s
 
 ls_search = trim(as_search)
@@ -89,59 +90,68 @@ ll_row = dw_header.getrow()
 
 choose case ls_search
 	case "acctno"
-		
-		str_s.serviceType = is_serviceType
+		str_s.serviceType = is_serviceType = 'INET'
 		
 		openwithparm(w_search_subscriber, str_s)
 		
+		--QUERY SEARCH ACCTNO
+		select aracctsubscriber.acctno,
+ 					   aracctsubscriber.subscribername,
+		arAcctSubscriber.subscribername,   
+				vw_arAcctAddress.contactNo,   
+				arAcctSubscriber.mobileno,   
+				vw_arAcctAddress.municipalityCode,   
+				arAcctSubscriber.packagecode,   
+				arAcctSubscriber.subscriberstatuscode,   
+				vw_arAcctAddress.completeAddress,
+		 subscriberStatusMaster.subscriberStatusName,
+		      arPackageMaster.packageName
+								 from
+								 aracctsubscriber
+		 inner join vw_arAcctAddress 
+				   on  vw_arAcctAddress.acctNo = arAcctSubscriber.acctNo
+		            and vw_arAcctAddress.addressTypeCode = 'SERVADR1' 
+		            and vw_arAcctAddress.divisionCode = arAcctSubscriber.divisionCode
+		            and vw_arAcctAddress.companyCode = arAcctSubscriber.companyCode
+		inner join arPackageMaster  
+				   on  arPackageMaster.packageCode = arAcctSubscriber.packageCode
+		            and arPackageMaster.divisionCode = arAcctSubscriber.divisionCode
+		            and arPackageMaster.companyCode = arAcctSubscriber.companyCode
+			inner join subscriberStatusMaster 
+		   on  subscriberStatusMaster.subscriberstatuscode = arAcctSubscriber.subscriberstatuscode
+		   
+		--END QUERY ACCTNO
 		ls_result = trim(Message.StringParm)
 		if ls_result = '' or isNull(ls_result)then			
 			return
 		end if
-		
-		dw_header.setitem(ll_row,'acctno', ls_result)		
-		ls_acctNo = ls_result
-		
-		select count(acctNo) into :ll_count from applOfReactivationTranHdr
-		where  acctNo = :ls_acctNo and applicationStatusCode not in ('AC','CN')
-		and divisionCode = :gs_divisionCode
-		and companyCode = :gs_companyCode
-		using  SQLCA;
-		if SQLCA.SQLCode < 0 then
-			guo_func.MsgBox('SM-0000001','SQL Error Code : ' + 	string(SQLCA.SQLCode) + &
-								 '~r~nSQL Error Text ; ' + SQLCA.SQLErrText)
-			return					 
-		end if	
-		
-		select subscriberStatusCode
-		into :ls_subscode
-		from arAcctSubscriber
-		where acctno = :ls_result
-		and divisionCode = :gs_divisionCode
-		and companyCode = :gs_companyCode
-		
-		using SQLCA;
-		
-		if ls_subscode = 'APL' then
-				guo_func.MsgBox('Error.. ' ,+&
-									 'This Account Status is Applied..  please select another Account and Click OK to continue...')
-				return 				 
-		end if	
-		
-		
-		if ll_count > 0 then
-			guo_func.MsgBox('Pending Application Found...', 'This account has a pending Application for [Reactivation],'+&
-								 ' please verify the transaction on JO Monitoring...')
-			triggerevent("ue_cancel")
-			return					 
-		end if	
-		
-		if not iuo_subscriber.setAcctNo(ls_acctNo) then
-			guo_func.msgbox("Warning1!", iuo_subscriber.lastSQLCode + "~r~n" + iuo_subscriber.lastSQLErrText)
-		end IF
-		
-		--VALIDASI IUO_SUBCRIBER.SETACCTNO
-		lastMethodAccessed = 'setAcctNo'
+			dw_header.setitem(ll_row,'acctno', ls_result)		
+			ls_acctNo = ls_result
+			
+			select count(acctNo) into :ll_count from applofReactivationtranhdr
+				where  acctNo = :ls_acctNo
+				and applicationStatusCode not in ('AC','CN')
+				and divisionCode = :gs_divisionCode
+				and companyCode = :gs_companyCode
+			using  SQLCA;
+			if SQLCA.SQLCode < 0 then
+				guo_func.MsgBox('SM-0000001','SQL Error Code : ' + 	string(SQLCA.SQLCode) + &
+									 '~r~nSQL Error Text ; ' + SQLCA.SQLErrText)
+				return					 
+			end if	
+			
+			if ll_count > 0 then
+				guo_func.MsgBox('Pending Application Found...', 'This account has a pending Application for [Reactivation],'+&
+									 ' please verify the transaction on JO Monitoring...')
+				return					 
+			end if	
+			
+			if not iuo_subscriber.setAcctNo(ls_acctNo) then
+				guo_func.msgbox("Warning1!", iuo_subscriber.lastSQLCode + "~r~n" + iuo_subscriber.lastSQLErrText)
+			end IF
+			
+			--VALIDASI IUO_SUBCRIBER.SETACCTNO
+			lastMethodAccessed = 'setAcctNo'
 
 			acctNo = as_acctNo
 			
@@ -597,81 +607,81 @@ choose case ls_search
 			return TRUE
 		
 		--END VALIDASI SETACCTNO
+			
+			if not iuo_subscriber.getSubscriberStatusName(ls_subscriberStatusName) then
+				guo_func.msgbox("Warning!", iuo_subscriber.lastSQLCode + "~r~n" + iuo_subscriber.lastSQLErrText)
+				return
+			end IF
+			
+			--validasi getSubscriberStatusName
 		
-		if not iuo_subscriber.getSubscriberStatusName(ls_subscriberStatusName) then
-			guo_func.msgbox("Warning!", iuo_subscriber.lastSQLCode + "~r~n" + iuo_subscriber.lastSQLErrText)
-			return
-		end IF
-		
-		--validasi getSubscriberStatusName
-		
-		lastMethodAccessed = 'getSubscriberStatusName'
-
-		select subscriberStatusName
-		  into :as_subscriberStatusName
-		  from subscriberStatusMaster
-		 where subscriberStatusCode = :subscriberStatusCode
-		 using SQLCA;
-		if SQLCA.sqlcode <> 0 then
-			lastSQLCode = string(SQLCA.sqlcode)
-			lastSQLErrText = SQLCA.sqlerrtext
-			return FALSE
-		end if
-		return TRUE
+			lastMethodAccessed = 'getSubscriberStatusName'
+	
+			select subscriberStatusName
+			  into :as_subscriberStatusName
+			  from subscriberStatusMaster
+			 where subscriberStatusCode = :subscriberStatusCode
+			 using SQLCA;
+			if SQLCA.sqlcode <> 0 then
+				lastSQLCode = string(SQLCA.sqlcode)
+				lastSQLErrText = SQLCA.sqlerrtext
+				return FALSE
+			end if
+			return TRUE
 		
 		--end validasi getSubscriberStatusName
-		
-		if not trim(ls_subscriberStatusName) = 'Temporarily DeActivated' then
-			guo_func.msgbox('Warning!', 'A subscriber status [Temporarily DeActivated] is allow for this transaction')
-			post event ue_cancel()
-		end if
 			
-		--subscrber name
-		ls_subscriberName = iuo_subscriber.subscriberName 
-		dw_header.setItem( 1, "subscriberName", ls_subscriberName )
-		dw_header.setItem( 1, "chargeTypeCode", iuo_subscriber.chargeTypeCode)
-		dw_header.setItem( 1, "subsUserTypeCode", iuo_subscriber.subsUserTypeCode)
-		dw_header.setItem( 1, "subscriberStatusCode", iuo_subscriber.subscriberStatusCode)
-		dw_header.setItem( 1, "subsTypeCode", iuo_subscriber.subsTypeCode)
-		dw_header.setItem( 1, "packagecode", iuo_subscriber.packagecode)				
-		
-		--service address
-		if not iuo_subscriber.getServiceAddress(ls_serviceAddress) then
-			guo_func.msgbox("Warning2!", iuo_subscriber.lastSQLCode + "~r~n" + &
-				iuo_subscriber.lastSQLErrText)
-		end IF
-		
+			if not trim(ls_subscriberStatusName) = 'Temporarily DeActivated' then
+				guo_func.msgbox('Warning!', 'A subscriber status [Temporarily DeActivated] is allow for this transaction')
+				post event ue_cancel()
+			end if
+			
+			--subscrber name
+			ls_subscriberName = iuo_subscriber.subscriberName 
+			dw_header.setItem( 1, "subscriberName", ls_subscriberName )
+			dw_header.setItem( 1, "chargeTypeCode", iuo_subscriber.chargeTypeCode)
+			dw_header.setItem( 1, "subsUserTypeCode", iuo_subscriber.subsUserTypeCode)
+			dw_header.setItem( 1, "subscriberStatusCode", iuo_subscriber.subscriberStatusCode)
+			dw_header.setItem( 1, "subsTypeCode", iuo_subscriber.subsTypeCode)
+			dw_header.setItem( 1, "packagecode", iuo_subscriber.packagecode)				
+			
+			--service address
+			if not iuo_subscriber.getServiceAddress(ls_serviceAddress) then
+				guo_func.msgbox("Warning2!", iuo_subscriber.lastSQLCode + "~r~n" + &
+					iuo_subscriber.lastSQLErrText)
+			end IF
+			
 			--validasi getServiceAddress
-		lastMethodAccessed = 'getServiceAddress'
-	
-		as_serviceAddress = serviceAddressComplete (take FROM ue_subcriber.setaccno.serviceAddressComplete)
+			lastMethodAccessed = 'getServiceAddress'
 		
-		--end getServiceAddress
-	
-		dw_header.setItem( 1, "serviceAddress", ls_serviceAddress )
+			as_serviceAddress = serviceAddressComplete (take FROM ue_subcriber.setaccno.serviceAddressComplete)
+			
+			--end getServiceAddress
 		
-		--billing address
-		if not iuo_subscriber.getBillingAddress(ls_billingAddress) then
-			guo_func.msgbox("Warning3!", iuo_subscriber.lastSQLCode + "~r~n" + &
-				iuo_subscriber.lastSQLErrText)
-		end IF
+			dw_header.setItem( 1, "serviceAddress", ls_serviceAddress )
+			
+			--billing address
+			if not iuo_subscriber.getBillingAddress(ls_billingAddress) then
+				guo_func.msgbox("Warning3!", iuo_subscriber.lastSQLCode + "~r~n" + &
+					iuo_subscriber.lastSQLErrText)
+			end IF
+			
+			--validasi getBillingAddress
+			lastMethodAccessed = 'getBillingAddress'
 		
-		--validasi getBillingAddress
-		lastMethodAccessed = 'getBillingAddress'
-	
-		as_billingaddress = billingAddressComplete (take FROM ue_subcriber.setaccno.billingAddressComplete)
+			as_billingaddress = billingAddressComplete (take FROM ue_subcriber.setaccno.billingAddressComplete)
+			
+			--end getBillingAddress
 		
-		--end getBillingAddress
-	
-		dw_header.setItem( 1, "billingAddress", ls_billingAddress )
-		
-		--package 
-		if not iuo_subscriber.getPackageName(ls_package) then
-			guo_func.msgbox("Warning4!", iuo_subscriber.lastSQLCode + "~r~n" + &
-				iuo_subscriber.lastSQLErrText)
-		end IF
-		
-		--validasi getPackageName
+			dw_header.setItem( 1, "billingAddress", ls_billingAddress )
+			
+			--package 
+			if not iuo_subscriber.getPackageName(ls_package) then
+				guo_func.msgbox("Warning4!", iuo_subscriber.lastSQLCode + "~r~n" + &
+					iuo_subscriber.lastSQLErrText)
+			end IF
+			
+			--validasi getPackageName
 		
 			lastMethodAccessed = 'getPackageName'
 	
@@ -690,133 +700,50 @@ choose case ls_search
 				return TRUE
 	
 		--end validasi getPackageName
+				
+			dw_header.setItem( 1, "package", ls_package )		
 			
-		dw_header.setItem( 1, "package", ls_package )		
 		
-		--general package 
-		if not iuo_subscriber.getGeneralPackageName(ls_generalPackage) then
-			guo_func.msgbox("Warning!", iuo_subscriber.lastSQLCode + "~r~n" + &
-				iuo_subscriber.lastSQLErrText)
-		end IF
-		
-		--VALIDASI GETGENERALPACKAGENAME
-		
-		lastMethodAccessed = 'getGeneralPackageName'
-
-		select distinct generalPackageMaster.generalPackageName
-		  into :as_generalPackageName
-		  from arPackageMaster, generalPackageMaster
-		 where arPackageMaster.packageCode = :packageCode
-		 and arPackageMaster.divisionCode = :gs_divisionCode
-			and arPackageMaster.companyCode = :gs_companyCode
-			and generalPackageMaster.divisionCode = :gs_divisionCode
-			and generalPackageMaster.companyCode = :gs_companyCode
-			and arPackageMaster.generalPackageCode = generalPackageMaster.generalPackageCode
-		 using SQLCA;
-		if SQLCA.sqlcode <> 0 then
-			lastSQLCode = string(SQLCA.sqlcode)
-			lastSQLErrText = SQLCA.sqlerrtext
-			return FALSE
-		end if
-		return TRUE
-		
-		--END VALDIASI GENERALPACKAGENAME
-		
-		dw_header.setItem( 1, "generalPackage", ls_generalPackage )		
-		
-		--subscriber status
-		if not iuo_subscriber.getSubscriberStatusName(ls_subscriberStatus) then
-			guo_func.msgbox("Warning5!", iuo_subscriber.lastSQLCode + "~r~n" + &
-				iuo_subscriber.lastSQLErrText)
-		end IF
-		
-		--validasi getSubscriberStatusName
-		
-		lastMethodAccessed = 'getSubscriberStatusName'
-
-		select subscriberStatusName
-		  into :as_subscriberStatusName
-		  from subscriberStatusMaster
-		 where subscriberStatusCode = :subscriberStatusCode
-		 using SQLCA;
-		if SQLCA.sqlcode <> 0 then
-			lastSQLCode = string(SQLCA.sqlcode)
-			lastSQLErrText = SQLCA.sqlerrtext
-			return FALSE
-		end if
-		return TRUE
-		
-		--end validasi
-		
-		dw_header.setItem( 1, "subscriberStatus", ls_subscriberStatus )				
-		
-		--customer type
-		if not iuo_subscriber.getchargeTypeName(ls_chargeType) then
-			guo_func.msgbox("Warning6!", iuo_subscriber.lastSQLCode + "~r~n" + &
-				iuo_subscriber.lastSQLErrText)
-		end IF
-		
-		--VALIDASI GETCHARGETYPENAME
-		
-		lastMethodAccessed = 'getchargeTypeName'
-	
-		select chargeTypeName
-		  into :as_chargeTypeName
-		  from chargeTypeMaster
-		 where chargeTypeCode = :chargeTypeCode
-		 using SQLCA;
-		if SQLCA.sqlcode <> 0 then
-			lastSQLCode = string(SQLCA.sqlcode)
-			lastSQLErrText = SQLCA.sqlerrtext
-			return FALSE
-		end if
-		return TRUE
-	
-		--END GETCHARGETYPENAME
-	
-		dw_header.setItem( 1, "chargeType", ls_chargeType )				
-		
-		--subscriber Type
-		if not iuo_subscriber.getSubsTypeName(ls_subscriberType) then
-			guo_func.msgbox("Warning7!", iuo_subscriber.lastSQLCode + "~r~n" + &
-				iuo_subscriber.lastSQLErrText)
-		end IF
-		
-		--VALIDASI GET getSubsTypeName
-	
-	  lastMethodAccessed = 'getSubsTypeName'
-
-		select subsTypeName
-		  into :as_subsTypeName
-		  from subscriberTypeMaster
-		 where subsTypeCode = :subsTypeCode
-		 and companyCode = :gs_companyCode
-		using SQLCA;
-		if SQLCA.sqlcode <> 0 then
-			lastSQLCode = string(SQLCA.sqlcode)
-			lastSQLErrText = SQLCA.sqlerrtext
-			return FALSE
-		end if
-		return TRUE
-		
-	--END getSubsTypeName
-		
-		dw_header.setItem( 1, "subscriberType", ls_subscriberType )				
-		
-		--subscriber User Type
-		if not iuo_subscriber.getSubsUserTypeName(ls_subscriberUserType) then
-			guo_func.msgbox("Warning8!", iuo_subscriber.lastSQLCode + "~r~n" + &
-				iuo_subscriber.lastSQLErrText)
-		end IF
-		
-		--VALIDASI getSubsUserTypeName
+			--subscriber status
+			if not iuo_subscriber.getSubscriberStatusName(ls_subscriberStatus) then
+				guo_func.msgbox("Warning5!", iuo_subscriber.lastSQLCode + "~r~n" + &
+					iuo_subscriber.lastSQLErrText)
+			end IF
 			
-			lastMethodAccessed = 'getSubsUserTypeName'
+			--validasi getSubscriberStatusName
+		
+			lastMethodAccessed = 'getSubscriberStatusName'
 	
-			select subsUserTypeName
-			  into :as_subsUserTypeName
-			  from subsUserTypeMaster
-			 where subsUserTypeCode = :subsUserTypeCode
+			select subscriberStatusName
+			  into :as_subscriberStatusName
+			  from subscriberStatusMaster
+			 where subscriberStatusCode = :subscriberStatusCode
+			 using SQLCA;
+			if SQLCA.sqlcode <> 0 then
+				lastSQLCode = string(SQLCA.sqlcode)
+				lastSQLErrText = SQLCA.sqlerrtext
+				return FALSE
+			end if
+			return TRUE
+			
+			--end validasi getSubscriberStatusName
+		
+			dw_header.setItem( 1, "subscriberStatus", ls_subscriberStatus )				
+			
+			--customer type
+			if not iuo_subscriber.getchargeTypeName(ls_chargeType) then
+				guo_func.msgbox("Warning6!", iuo_subscriber.lastSQLCode + "~r~n" + &
+					iuo_subscriber.lastSQLErrText)
+			end IF
+			
+			--VALIDASI GETCHARGETYPENAME
+		
+			lastMethodAccessed = 'getchargeTypeName'
+		
+			select chargeTypeName
+			  into :as_chargeTypeName
+			  from chargeTypeMaster
+			 where chargeTypeCode = :chargeTypeCode
 			 using SQLCA;
 			if SQLCA.sqlcode <> 0 then
 				lastSQLCode = string(SQLCA.sqlcode)
@@ -825,342 +752,183 @@ choose case ls_search
 			end if
 			return TRUE
 	
-		--END getSubsUserTypeName
+		--END GETCHARGETYPENAME
 		
-		dw_header.setItem( 1, "subscriberUserType", ls_subscriberUserType )				
-		
-		--occupancy Rate
-		ld_occupancyRate = iuo_subscriber.occupancyRate
-		dw_header.setItem( 1, "occupancyRate", ld_occupancyRate )							
-		
-		--monthly Mline Fee
-		if not iuo_subscriber.getMlineMonthlyRate(ld_monthlyMlineFee) then
-			guo_func.msgbox("Warning9!", iuo_subscriber.lastSQLCode + "~r~n" + &
-				iuo_subscriber.lastSQLErrText)
-		end IF
-		
-		--VALIDASI getMlineMonthlyRate
-		lastMethodAccessed = 'getMLineMonthlyRate'
-	
-		select monthlyRate
-		  into :ad_mlineMonthlyRate
-		  from arPackageMaster
-		 where packageCode = :packageCode
-		 and divisionCode = :gs_divisionCode
-		and companyCode = :gs_companyCode
-		using SQLCA;
-		if SQLCA.sqlcode <> 0 then
-			lastSQLCode = string(SQLCA.sqlcode)
-			lastSQLErrText = SQLCA.sqlerrtext
-			return FALSE
-		end if
-		return TRUE
-	
-		--END getMlineMonthlyRate
-	
-		dw_header.setItem( 1, "monthlyMlineFee", ld_monthlyMlineFee )							
-		
-		--monthly Ext Fee
-		if not iuo_subscriber.getExtMonthlyRate(ld_monthlyExtFee) then
-			guo_func.msgbox("Warning10!", iuo_subscriber.lastSQLCode + "~r~n" + &
-				iuo_subscriber.lastSQLErrText)
-		end IF
-		
-		--VALIDASI GETEXTMONTHRATE
-		
-		lastMethodAccessed = 'getExtMonthlyRate'
-
-			if isDigital  <> 'Y'  then
+			dw_header.setItem( 1, "chargeType", ls_chargeType )				
 			
-				select extMonthlyRate
-				  into :ad_extMonthlyRate
-				  from arPackageMaster
-				 where packageCode = :packageCode
-				 and divisionCode = :gs_divisionCode
-					and companyCode = :gs_companyCode
-					using SQLCA;
-				if SQLCA.sqlcode <> 0 then
-					lastSQLCode = string(SQLCA.sqlcode)
-					lastSQLErrText = SQLCA.sqlerrtext
-					return FALSE
-				end if
-				
-			else
-				
-				select sum(monthlyRate)
-				  into :ad_extMonthlyRate
-				  from arPackageMaster
-				  inner join subscriberCPEMaster on arPackageMaster.packageCode = subscriberCPEMaster.packageCode
-				  	and arPackageMaster.divisionCode = subscriberCPEMaster.divisionCode
-					and arPackageMaster.companyCode = subscriberCPEMaster.companyCode
-				 //where arPackageMaster.packageCode <> :packageCode --zar 12/08/2009 12am
-				 where subscriberCPEMaster.isPrimary <> 'Y'
-				 and subscriberCPEMaster.acctNo = :acctNo
-				 and arPackageMaster.divisionCode = :gs_divisionCode
-				 and arPackageMaster.companyCode = :gs_companyCode
+			--subscriber Type
+			if not iuo_subscriber.getSubsTypeName(ls_subscriberType) then
+				guo_func.msgbox("Warning7!", iuo_subscriber.lastSQLCode + "~r~n" + &
+					iuo_subscriber.lastSQLErrText)
+			end IF
+			
+			--VALIDASI GET getSubsTypeName
+			
+			  lastMethodAccessed = 'getSubsTypeName'
+		
+				select subsTypeName
+				  into :as_subsTypeName
+				  from subscriberTypeMaster
+				 where subsTypeCode = :subsTypeCode
+				 and companyCode = :gs_companyCode
 				using SQLCA;
 				if SQLCA.sqlcode <> 0 then
 					lastSQLCode = string(SQLCA.sqlcode)
 					lastSQLErrText = SQLCA.sqlerrtext
 					return FALSE
 				end if
+				return TRUE
 				
-				if isnull(ad_extMonthlyRate) then ad_extMonthlyRate = 0
+			--END getSubsTypeName
+		
+			dw_header.setItem( 1, "subscriberType", ls_subscriberType )				
+			
+			--subscriber User Type
+			if not iuo_subscriber.getSubsUserTypeName(ls_subscriberUserType) then
+				guo_func.msgbox("Warning8!", iuo_subscriber.lastSQLCode + "~r~n" + &
+					iuo_subscriber.lastSQLErrText)
+			end IF
+			
+			--VALIDASI getSubsUserTypeName
 				
-				
+				lastMethodAccessed = 'getSubsUserTypeName'
+		
+				select subsUserTypeName
+				  into :as_subsUserTypeName
+				  from subsUserTypeMaster
+				 where subsUserTypeCode = :subsUserTypeCode
+				 using SQLCA;
+				if SQLCA.sqlcode <> 0 then
+					lastSQLCode = string(SQLCA.sqlcode)
+					lastSQLErrText = SQLCA.sqlerrtext
+					return FALSE
+				end if
+				return TRUE
+		
+			--END getSubsUserTypeName
+			
+			dw_header.setItem( 1, "subscriberUserType", ls_subscriberUserType )				
+			
+			--monthly Mline Fee
+			if not iuo_subscriber.getMlineMonthlyRate(ld_monthlyMlineFee) then
+				guo_func.msgbox("Warning9!", iuo_subscriber.lastSQLCode + "~r~n" + &
+					iuo_subscriber.lastSQLErrText)
+			end IF
+			
+			--VALIDASI getMlineMonthlyRate
+			lastMethodAccessed = 'getMLineMonthlyRate'
+		
+			select monthlyRate
+			  into :ad_mlineMonthlyRate
+			  from arPackageMaster
+			 where packageCode = :packageCode
+			 and divisionCode = :gs_divisionCode
+			and companyCode = :gs_companyCode
+			using SQLCA;
+			if SQLCA.sqlcode <> 0 then
+				lastSQLCode = string(SQLCA.sqlcode)
+				lastSQLErrText = SQLCA.sqlerrtext
+				return FALSE
 			end if
 			return TRUE
-
 		
-		--END VALDIASI GETEXTMONTHRATE
+		--END getMlineMonthlyRate
 		
-		dw_header.setItem( 1, "monthlyExtFee", ld_monthlyExtFee )							
-		
-		--long ll_noOfExt
-		if not iuo_subscriber.getnoofactiveext(ll_noOfExt) then
-			guo_func.msgbox("Warning11!", iuo_subscriber.lastSQLCode + "~r~n" + &
-				iuo_subscriber.lastSQLErrText)
-		end IF
-		
-		--VALIDASI GETNOOFACTIVEEXT
-		
-		lastMethodAccessed = 'getNoOfExt'
-
-		select count(acctNo)
-		  into :al_noofext
-		  from subscriberCPEMaster
-		 where acctNo = :acctNo and acctNo is not null
-		 	and divisionCode = :gs_divisionCode
-		and companyCode = :gs_companyCode
-		and cpeStatusCode = 'AC'
-		 group by acctNo 
-		 using SQLCA;
-		if SQLCA.sqlcode < 0 then
-			lastSQLCode = string(SQLCA.sqlcode)
-			lastSQLErrText = SQLCA.sqlerrtext
-			return FALSE
-		elseif SQLCA.sqlcode = 100 then
-			al_noofext = 0
-		end if
-		
-		if al_noofext > 0 then
-			if substypecode <> 'CP' then
-				al_noofext = al_noofext - 1
-			else
-				al_noofext = 0
-			end if
-			///al_noofext = al_noofext - 1
-		end if
-		return TRUE
-
-		
-		--END VALIDASI GETNOOFACTIVEEXT
-		
-		dw_header.setItem( 1, "noOfExt", ll_noOfExt )									
-		
-		--ll_noOfSTB
-		if not iuo_subscriber.getNoOfSTB(ll_noOfSTB) then
-			guo_func.msgbox("Warning12!", iuo_subscriber.lastSQLCode + "~r~n" + &
-				iuo_subscriber.lastSQLErrText)
-		end IF
-		
-		--VALIDASI GETNOOFSTB
-		lastMethodAccessed = 'getNoOfSTB'
-
-		select count(acctNo)
-		  into :al_noofSTB
-		  from subscriberCPEMaster
-		 where acctNo = :acctNo and acctNo is not null
-		 and divisionCode = :gs_divisionCode
-		and companyCode = :gs_companyCode
-		group by acctNo 
-		 using SQLCA;
-		if SQLCA.sqlcode < 0 then
-			lastSQLCode = string(SQLCA.sqlcode)
-			lastSQLErrText = SQLCA.sqlerrtext
-			return FALSE
-		elseif SQLCA.sqlcode = 100 then
-			al_noofstb = 0
-		end if
-		
-		return TRUE
-
-		--END VALIDASI GETNOOFSTB
+			dw_header.setItem( 1, "monthlyRate", ld_monthlyMlineFee )							
+			dw_header.acceptText()
 			
-		dw_header.setItem( 1, "noOfSTB", ll_noOfSTB )											
-		dw_header.acceptText()
-		
-		--get re-activation fee
-		--first get the last de-activation trans 
-		
-		string ls_previous_deAc_tranno
-		long ll_noOfRequiredSTB
-		
-		select 	max(tranNo)
-		into 		:ls_previous_deAc_tranno
-		FROM 		deactivationTranHdr
-		WHERE 	acctno = :ls_acctNo
-		and divisionCode = :gs_divisionCode
-		and companyCode = :gs_companyCode
-		USING SQLCA;			
-		If SQLCA.SQLcode = -1 then
-			messagebox('SM-0000001',"select in  deactivationTranHdr SQLCode    : "+string(SQLCA.SQLCode) + "SQLErrText : " + SQLCA.SQLErrText)
-			return
-		end if	
-		
-		if isnull(ls_previous_deAc_tranno) then
-			ls_previous_deAc_tranno = ''
-		end if
+			--get re-activation fee
+			--first get the last de-activation trans 
 			
-		ls_packageCode = iuo_subscriber.packageCode
-		
-		select mLineExtReAcFeeWithInGP, mLineExtReAcFeeBefIRD
-		into :id_mLineExtReAcFeeWithInGP, :id_mLineExtReAcFeeBefIRD
-		FROM 		arPackageMaster
-		WHERE 	packageCode = :ls_packageCode
-		and divisionCode = :gs_divisionCode
-		and companyCode = :gs_companyCode
-		USING SQLCA;			
-		If SQLCA.SQLcode <> 0 then
-			messagebox('SM-0000001',"select in arPackageMaster SQLCode    : "+string(SQLCA.SQLCode) + "SQLErrText : " + SQLCA.SQLErrText)
-		end if
-		
-		--from cablenet
-		if ls_previous_deAc_tranno <> '' then
+			string ls_previous_deAc_tranno
+			long ll_noOfRequiredSTB
 			
-			if not iuo_subscriber.getNoOfSTB(ll_noOfAssingedSTB) then
-				guo_func.msgbox("Warning!", iuo_subscriber.lastSQLCode + "~r~n" + &
-					iuo_subscriber.lastSQLErrText)
-			end if
-		
-			select 	 
-						tranNo,
-						activationIntendedDate, 
-						gracePeriodDatefrom, 
-						gracePeriodDateto,
-						startOfAutoPermDiscDate, 
-						noOfSTBPulledOut,
-						noOfSTBDeActivated,
-						trandate,
-						referenceJONo,
-						applicationStatusCode
-			into 		:is_deacTranNo,
-						:idt_activationIntendedDate, 
-						:idt_gracePeriodDatefrom, 
-						:idt_gracePeriodDateto,
-						:idt_startOfAutoPermDiscDate, 
-						:ll_noOfRequiredSTB,
-						:ll_noOfStbDeactivated,
-						:ldtme_dateofdeactivation,
-						:ls_joNo,
-						:ls_statusCode
-			FROM 		applOfDeactivationTranHdr
+			select 	max(tranNo)
+			into 		:ls_previous_deAc_tranno
+			FROM 		deactivationTranHdr
 			WHERE 	acctno = :ls_acctNo
 			and divisionCode = :gs_divisionCode
 			and companyCode = :gs_companyCode
-			and rownum < 2
-			order by tranNo desc
 			USING SQLCA;			
 			If SQLCA.SQLcode = -1 then
-				messagebox('SM-0000001',"select in  applOfDeactivationTranHdr SQLCode    : "+string(SQLCA.SQLCode) + "SQLErrText : " + SQLCA.SQLErrText)
-				return			
+				messagebox('SM-0000001',"select in  deacMLineExtTranHdr SQLCode    : "+string(SQLCA.SQLCode) + "SQLErrText : " + SQLCA.SQLErrText)
+				return
 			end if	
-				
-			if ls_statusCode = 'OG' or ls_statusCode = 'FR'  then
-				guo_func.MsgBox('Pending Application Found...', 'This account has a pending Application for [Deactivation],'+&
-								 ' please verify the transaction on JO Monitoring...')
-				triggerevent("ue_cancel")
-				return	
+			
+			if isnull(ls_previous_deAc_tranno) then
+				ls_previous_deAc_tranno = ''
 			end if
 			
-			if isnull(idt_activationIntendedDate) then 
-				guo_func.msgbox("De-activation record error.", "Activation Intended Date is null")
-				return
+			ls_packageCode = iuo_subscriber.packageCode
+			select reactivationFee
+			into :id_reAcFee
+			FROM 		arpackageMaster
+			WHERE 	packageCode = :ls_packageCode
+			and divisionCode = :gs_divisionCode
+			and companyCode = :gs_companyCode
+			USING SQLCA;			
+			If SQLCA.SQLcode <> 0 then
+				messagebox('SM-0000001',"select in arpackageMaster SQLCode    : "+string(SQLCA.SQLCode) + "SQLErrText : " + SQLCA.SQLErrText)
 			end if
+		
+			if isnull(id_reacFee) then id_reacFee = 0.00
+			
+			--from cablenet
+			if ls_previous_deAc_tranno <> '' then
+				select 	
+							activationIntendedDate, 
+							gracePeriodDatefrom, 
+							gracePeriodDateto,
+							startOfAutoPermDiscDate, 
+							trandate
+				into 		:idt_activationIntendedDate, 
+							:idt_gracePeriodDatefrom, 
+							:idt_gracePeriodDateto,
+							:idt_startOfAutoPermDiscDate, 
+							:ldtme_dateofdeactivation
+				FROM 		applOfDeActivationTranHdr
+				WHERE 	acctno = :ls_acctNo
+				and divisionCode = :gs_divisionCode
+				and companyCode = :gs_companyCode
+				and rownum < 2
+				order by tranNo desc
+				USING SQLCA;			
+				If SQLCA.SQLcode = -1 then
+					messagebox('SM-0000001',"select in  applOfMlineExtDeAcTranHdr SQLCode    : "+string(SQLCA.SQLCode) + "SQLErrText : " + SQLCA.SQLErrText)
+					return			
+				end if	
+				
+				if isnull(idt_activationIntendedDate) then 
+					guo_func.msgbox("De-activation record error.", "Activation Intended Date is null")
+					return
+				end if
 					
-			if isnull(idt_gracePeriodDatefrom) then 			
-				guo_func.msgbox("De-activation record error.", "Grace Period Date is null")
-				return
-			end if
-			
-			if isnull(idt_gracePeriodDateto) then 			
-				guo_func.msgbox("De-activation record error.", "Grace Period Date is null")
-				return
-			end if
-	
-			if isnull(idt_startOfAutoPermDiscDate) then 
-				guo_func.msgbox("De-activation record error.", "Start Of Auto Permanent Disconnnection Date is null")
-				return
-			end if			
-			
-			if isnull(ll_noOfRequiredSTB) then 
-				guo_func.msgbox("De-activation record error.", "No of Required STB is null.")
-				return
-			end if
+				if isnull(idt_gracePeriodDatefrom) then 			
+					guo_func.msgbox("De-activation record error.", "Grace Period Date is null")
+					return
+				end if
 				
-			-------------------------------------------
-			select sum(noOfRequiredSTB) 
-			into :ll_noOfRequiredSTB
-			from (
-				select count(*) noOfRequiredSTB
-				from applOfDeactivationTranHdr a
-				inner join deactivationTranHdr d on a.referenceJoNo = d.jobOrderNo
-					 and a.acctNo = d.acctNo
-					 and a.divisionCode = d.divisionCode and a.companyCode = d.companyCode
-				inner join deactivationTranDtl b on d.tranNo = b.tranNo
-					 and d.divisionCode = b.divisionCode and d.companyCode = b.companyCode
-				left join arPackageMaster c on b.packageCode = c.packageCode
-					 and c.divisionCode = b.divisionCode and c.companyCode = b.companyCode
-				where a.referenceJONo = :ls_joNo and a.acctNo =  :ls_acctNo
-				and a.divisionCode = :gs_divisionCode and a.companyCode = :gs_companyCode
+				if isnull(idt_gracePeriodDateto) then 			
+					guo_func.msgbox("De-activation record error.", "Grace Period Date is null")
+					return
+				end if
+		
+				if isnull(idt_startOfAutoPermDiscDate) then 
+					guo_func.msgbox("De-activation record error.", "Start Of Auto Permanent Disconnnection Date is null")
+					return
+				end if			
 				
-				union all
-				
-				select count(*) noOfRequiredSTB
-				from applOfDeactivationTranHdr a
-				inner join deactivationTranHdr d on a.tranDate = d.tranDate
-					 and a.acctNo = d.acctNo
-					 and a.divisionCode = d.divisionCode and a.companyCode = d.companyCode
-				inner join deactivationTranDtl b on d.tranNo = b.tranNo
-					 and d.divisionCode = b.divisionCode and d.companyCode = b.companyCode
-				left join arPackageMaster c on b.packageCode = c.packageCode
-					 and c.divisionCode = b.divisionCode and c.companyCode = b.companyCode
-				where a.referenceJONo =:ls_joNo and d.jobOrderNo = '00000000' and a.acctNo =  :ls_acctNo
-				and a.divisionCode = :gs_divisionCode and a.companyCode = :gs_companyCode
-			) a
-			using SQLCA;
-			if SQLCA.SQLCode <> 0 then
-				guo_func.msgbox('ATTENTION','Error in select table from [applOfDeactivationTranDtl]...' + &
-								  '~r~nSQL Error Code: ' + string(SQLCA.SQLCode) + &
-								  '~r~nSQL Error Text: ' + SQLCA.SQLErrText )
-				return
-			end if
-			
-			--set the noOfRequiredSTB
-			dw_header.setItem( 1, "noOfRequiredSTB", ll_noOfRequiredSTB)//ll_noOfStbDeactivated - ll_noOfAssingedSTB)
-			dw_header.setItem( 1, "noOfRequiredCPE", ll_noOfRequiredSTB)//ll_noOfStbDeactivated - ll_noOfAssingedSTB)
-			dw_header.setItem( 1, "noOfStb", ll_noOfStbDeactivated )
-			dw_header.setitem( 1, "datelastdeactivated",ldtme_dateofdeactivation)
-			dw_header.setitem( 1, "datewithingraceperiod",idt_gracePeriodDateto)
-			
-			if iuo_subscriber.isDigital <> 'Y' and is_serviceType = 'CTV' and ll_noOfRequiredSTB > 0 then
-				dw_header.object.noOfRequiredSTB.tabsequence = 50
-			else
-				dw_header.object.noOfRequiredSTB.tabsequence = 0
-			end if
+				dw_header.setitem( 1, "datelastdeactivated",ldtme_dateofdeactivation)
 							
-			if isnull(id_mLineExtReAcFeeWithInGP) then id_mLineExtReAcFeeWithInGP = 0.00
-			if isnull(id_mLineExtReAcFeeBefIRD) then id_mLineExtReAcFeeBefIRD = 0.00
 							
-			--compute for required inital payment
-			if uf_prepare_required_initial_payment() = -1 then
-				guo_func.msgbox("Computation for initial required payment error.", "Cannot compute for initial required payment, incomplete de-activation.")
-				return
-			end IF
-			
-			--VALIDASI UF_PREPARE_REQUIRED_INITIAL_PAYMENT
-			
-			--call compute required initial payment
+				--compute for required inital payment
+				if uf_prepare_required_initial_payment() = -1 then
+					guo_func.msgbox("Computation for initial required payment error.", "Cannot compute for initial required payment, incomplete de-activation.")
+				end IF
+				
+				--VALIDASI uf_prepare_required_initial_payment
+				
+				--call compute required initial payment
 				long ll_rows, ll_success
 				string ls_subsTypeCode, ls_packageCode, ls_chargeTypeCode, ls_acquisitionTypeCode
 				
@@ -1170,161 +938,123 @@ choose case ls_search
 				
 				ll_rows = idw_ReqInitPayment.rowCount()
 				
-				if isnull(ls_subsTypeCode) then return -1
-				if isnull(ls_packageCode) then return -1
-				if isnull(ls_chargeTypeCode) then return -1
-				if isnull(id_mLineExtReAcFeeWithInGP) then return -1
-				if isnull(id_mLineExtReAcFeeBefIRD) then return -1
-				if isnull(idt_activationIntendedDate) then return -1
-				if isnull(idt_gracePeriodDatefrom) then return -1
-				if isnull(idt_gracePeriodDateto) then return -1
-				if isnull(idt_startOfAutoPermDiscDate) then return -1
-				if isnull(idt_tranDate) then return -1
-				
-				if ll_rows > 0 then
-					ll_success = uf_compute_req_init_payment_reac(	&
-						ls_subsTypeCode, &
-						ls_packageCode, &
-						ls_chargeTypeCode, &
-						id_mLineExtReAcFeeWithInGP, &
-						id_mLineExtReAcFeeBefIRD, &
-						idt_activationIntendedDate, &
-						idt_gracePeriodDatefrom, &
-						idt_gracePeriodDateto, &
-						idt_startOfAutoPermDiscDate, &
-						idt_tranDate, &
-						id_reAcFee, &
-						id_reAcFeeDiscount, &
-						id_extendedFeeAmount, &
-						idw_ReqInitPayment )
-						
-						--VALIDASI UF_COMPUTE_REQ_INIT_PAYMENT_REAC
-						
-						
-						--subscriberType based fees
-						
-						decimal{2} ld_mLineExtReAcFeeWithInGP, ld_mLineExtReAcFeeBefIRD
-						datetime ldt_tranDate, ldt_activationIntendedDate, ldt_gracePeriodDate, ldt_startOfAutoPermDiscDate
-						
-						ld_mLineExtReAcFeeWithInGP = ad_mLineExtReAcFeeWithInGP
-						ld_mLineExtReAcFeeBefIRD = ad_mLineExtReAcFeeBefIRD
-						
-						ldt_activationIntendedDate = adt_activationIntendedDate
-						ldt_gracePeriodDate = adt_gracePeriodDateTo
-						ldt_startOfAutoPermDiscDate = adt_startOfAutoPermDiscDate
-						
-						ldt_tranDate = adt_tranDate
-						
-						--acquisitionTypeCode based fees
-						ad_reacfee = 0.00
-						ad_reacfeediscount = 0.00
-						ad_extendedfeeamount = 0.00
-						
-						long ll_row
-						decimal{2} ld_amount_REACF
-						ld_amount_REACF = 0.00
-						
-						--check if re-activation date is before intended re-activation date (IRD)
-						if string( ldt_tranDate, "yyyy/mm/dd" ) < string( ldt_activationIntendedDate, "yyyy/mm/dd" ) then
-							ld_amount_REACF = ld_mLineExtReAcFeeBefIRD
-							ad_reacfee = ld_mLineExtReAcFeeBefIRD
-						else
-							--check if re-activation date is within grace period (GP) 
-							--no need to test for pd date because this will be validated from the program itself
-							if string( ldt_tranDate, "yyyy/mm/dd" ) <= string( ldt_gracePeriodDate, "yyyy/mm/dd" ) then
-								ld_amount_REACF = ld_mLineExtReAcFeeWithInGP
-								ad_reacfee = ld_mLineExtReAcFeeWithInGP
-							end if
-						end if
-						
-						--chargeType based fees (discounts)
-						--REACF - Re-Activation Fee Required Initial Payment
-						
-						decimal{2} ld_percentDiscount, ld_amountDiscount
-						ld_percentDiscount = 0.00 
-						ld_amountDiscount = 0.00
-						
-						SELECT 	percentDiscount
-						INTO 		:ld_percentDiscount
-						FROM 		chargeTypeDiscountMaster
-						WHERE 	chargeTypeCode = :as_chargeTypeCode and arTypeCode = 'PDF'
-						and divisionCode = :gs_divisionCode
-						and companyCode = :gs_companyCode
-						USING SQLCA;			
-						If SQLCA.SQLcode = -1 then
-							messagebox('SM-0000001',"select in chargeTypeMaster SQLCode    : "+string(SQLCA.SQLCode) + "SQLErrText : " + SQLCA.SQLErrText)
-							return -1
-						end if
-						
-						if isnull(ld_percentDiscount) then ld_percentDiscount = 0.00 
-						if ld_percentDiscount > 0.00 then
-							ld_amountDiscount = ( ld_amount_REACF * (ld_percentDiscount/100) )
-							ld_amount_REACF = ld_amount_REACF - ld_amountDiscount
-							ad_reacfeediscount = ld_amountDiscount
-							if ld_amount_REACF < 0.00 then 
-								ld_amount_REACF = 0.00
-							end if
-						end if
-						
-						ad_extendedfeeamount = ld_amount_REACF
-						
-						--update datawindow for required initial payment
-						ll_row = adw_ReqInitPayment.find("arTypeCode='REACF'",1,adw_ReqInitPayment.rowCount())		
-						adw_ReqInitPayment.scrollToRow( ll_row )						
-						if ll_row > 0 then
-							adw_ReqInitPayment.setItem( ll_row, "amount", ld_amount_REACF )
-						end if		
-						
-						adw_ReqInitPayment.acceptText()
-						
-						
-						return 0
+				if not isnull(ls_subsTypeCode) then
+					if not isnull(ls_packageCode) then
+						if not isnull(ls_chargeTypeCode) then				
+								if ll_rows > 0 then
+									ll_success = uf_compute_req_init_payment_reac2(	&
+											ls_subsTypeCode, &
+											ls_packageCode, &
+											ls_chargeTypeCode, &
+				 							id_reacFee, &
+											idw_ReqInitPayment )
+											
+									--VALIDASI UF_COMPUTE_REQ_INIT_PAYMENT_REAC2
+											
+											
+										--subscriberType based fees
+										--mLineExtPermanentDiscFee
+										decimal{2} ld_reactivationfee
+										
+										
+										--acquisitionTypeCode based fees
+										long ll_row
+										decimal{2} ld_amount_REACF
+										
+										ld_amount_REACF = 0.00
+										ld_amount_REACF = ad_reactivationfee
+										
+										--chargeType based fees (discounts)
+										
+										--PDF - Permanent Disconnection Fees Required Initial Payment
+										decimal{2} ld_percentDiscount, ld_amountDiscount
+										ld_percentDiscount = 0.00 
+										ld_amountDiscount = 0.00
+										
+										SELECT 	percentDiscount
+										INTO 		:ld_percentDiscount
+										FROM 		chargeTypeDiscountMaster
+										WHERE 	chargeTypeCode = :as_chargeTypeCode and arTypeCode = 'PDF'
+										and divisionCode = :gs_divisionCode
+										and companyCode = :gs_companyCode
+										USING SQLCA;			
+										If SQLCA.SQLcode = -1 then
+											messagebox('SM-0000001',"select in chargeTypeMaster SQLCode    : "+string(SQLCA.SQLCode) + "SQLErrText : " + SQLCA.SQLErrText)
+											return -1
+										end if
+										
+										if isnull(ld_percentDiscount) then ld_percentDiscount = 0.00 
+										if ld_percentDiscount > 0.00 then
+											ld_amountDiscount = ( ld_amount_REACF * (ld_percentDiscount/100) )
+											ld_amount_REACF = ld_amount_REACF - ld_amountDiscount
+											if ld_amount_REACF < 0.00 then 
+												ld_amount_REACF = 0.00
+											end if
+										end if
+										
+										
+										--update datawindow for required initial payment
+										ll_row = adw_ReqInitPayment.find("arTypeCode='REACF'",1,adw_ReqInitPayment.rowCount())		
+										adw_ReqInitPayment.scrollToRow( ll_row )						
+										if ll_row > 0 then
+											adw_ReqInitPayment.setItem( ll_row, "amount", ld_amount_REACF )
+										end if		
+										
+										adw_ReqInitPayment.acceptText()
+										
+										
+										
+										return 0
 
 
-						
-						--END VALIDASI UF_COMPUTE_REQ_INIT_PAYMENT_REAC
-				end if			
+									--END VALDIASI	 UF_COMPUTE_REQ_INIT_PAYMENT_REAC2	
+								end if			
+						end if
+					end if
+				end if
+									
+				return 0
 				
 				return 0
-			--END VALIDASI UF_PREPATE_REQUIRED_INITIAL_PAYMENT
-		else
-			ll_noOfStbDeactivated = 1
-			ll_noOfAssingedSTB = 0
-			if ll_row > 0 then
-				idw_ReqInitPayment.setItem( ll_row, "amount",id_mLineExtReAcFeeWithInGP )
+				
+				--END VALIDASI uf_prepare_required_initial_payment
+			else
+				if ll_row > 0 then
+					idw_ReqInitPayment.setItem( ll_row, "amount",id_reacFee )
+				end if
+				dw_header.setColumn( 'preferredDateTimeFrom' )
 			end if
-			dw_header.setColumn( 'preferredDateTimeFrom' )
-		end if
-		ll_row = idw_ReqInitPayment.find("arTypeCode='REACF'",1,idw_ReqInitPayment.rowCount())		
-		idw_ReqInitPayment.scrollToRow( ll_row )
-		--------------------------------------------------------------
-		--validate policy on no of months a/r min requirement - start
-		--------------------------------------------------------------		
-		s_arrears_override_policy.refTranTypeCode = 'APPLMLEXTREA'
-		
-		if not f_overrideArrearsPolicyType(iuo_subscriber, s_arrears_override_policy ) then
-			triggerevent("ue_cancel")
-			return
-		end IF
-		
-		--VALIDASI F_OVERRIDEARREARSPOLICYTYPE
+			ll_row = idw_ReqInitPayment.find("arTypeCode='REACF'",1,idw_ReqInitPayment.rowCount())		
+			idw_ReqInitPayment.scrollToRow( ll_row )	
+			
+			--------------------------------------------------------------
+			--validate policy on no of months a/r min requirement - start
+			--------------------------------------------------------------		
+			s_arrears_override_policy.refTranTypeCode = 'APPLMLEXTREA'
+			
+			if not f_overrideArrearsPolicyType(iuo_subscriber, s_arrears_override_policy ) then
+				triggerevent("ue_cancel")
+				return
+			end IF
+			
+			--VALIDASI F_OVERRIDEARREARSPOLICYTYPE
 		
 		decimal {2} ld_ARBalance
 
-			//------------------------------------------------------------
-			// validate policy on no of months a/r min requirement - start
-			//------------------------------------------------------------
+			--------------------------------------------------------------
+			--validate policy on no of months a/r min requirement - start
+			--------------------------------------------------------------
 			
 			
 			ld_ARBalance = 0.00
-			// check if subscriber has a/r balances
+			--check if subscriber has a/r balances
 			
 			if not iuo_subscriber.getARBalance(ld_ARBalance,1) then
 				guo_func.msgbox("Warning!", iuo_subscriber.lastSQLCode + "~r~n" + &
 					iuo_subscriber.lastSQLErrText)
 			end if
 			
-			// pop up override policy window for authorization
+			--pop up override policy window for authorization
 			if ld_ARBalance > 0.00 then
 				if guo_func.msgbox("Policy Override!!!", &
 										"The current subscriber has a/r balances.  You can not continue with this request.  Do you want to override this policy?", &										
@@ -1376,28 +1106,28 @@ choose case ls_search
 							
 							ldt_date = dateTime(RelativeDate(date(guo_func.get_server_datetime()), li_subscription))
 							
-							--VALIDASI GET-SERVER_DATETIME
-
+							--VALIDASI GET_SERVER_DATE
+							
 							datetime ldt_datetime
+							date		ldt_date
 							select sysdate into :ldt_datetime 
 							from systemparameter 
 							where divisionCode = :gs_divisionCode
 							and companyCode = :gs_companyCode
 							using SQLCA;
 							if SQLCA.sqlcode <> 0 then
-								select sysdate into :ldt_datetime from systemparameter where rownum < 2 using SQLCA;
+								select sysdate into :ldt_datetime from DUAL where rownum < 2 using SQLCA;
 								if SQLCA.sqlcode < 0 then
 									guo_func.msgbox('Warning!', 'Unable to get server date')
 									lastSQLCode	= string(SQLCA.SQLCode)
 									lastSQLErrText	= SQLCA.SQLErrText
 								end if
 							end if
-							
+							ldt_date = date(ldt_datetime)
+							ldt_datetime = datetime(ldt_date)
 							return ldt_datetime
 							
-							
-							--END VALIASI GET_SERVER_DATETIME
-
+							--END VALIDASI GET_SERVER_DATE
 							
 							select count(*)
 							into :li_ads
@@ -1490,28 +1220,28 @@ choose case ls_search
 								
 								ldt_date 	= guo_func.get_server_dateTime()
 								
-								--VALIDASI GET-SERVER_DATETIME
+								--VALIDASI GET_SERVER_DATE
 
 								datetime ldt_datetime
+								date		ldt_date
 								select sysdate into :ldt_datetime 
 								from systemparameter 
 								where divisionCode = :gs_divisionCode
 								and companyCode = :gs_companyCode
 								using SQLCA;
 								if SQLCA.sqlcode <> 0 then
-									select sysdate into :ldt_datetime from systemparameter where rownum < 2 using SQLCA;
+									select sysdate into :ldt_datetime from DUAL where rownum < 2 using SQLCA;
 									if SQLCA.sqlcode < 0 then
 										guo_func.msgbox('Warning!', 'Unable to get server date')
 										lastSQLCode	= string(SQLCA.SQLCode)
 										lastSQLErrText	= SQLCA.SQLErrText
 									end if
 								end if
-								
+								ldt_date = date(ldt_datetime)
+								ldt_datetime = datetime(ldt_date)
 								return ldt_datetime
 								
-								
-								--END VALIASI GET_SERVER_DATETIME
-
+								--END VALIDASI GET_SERVER_DATE
 								
 								
 								insert into overridePolicy
@@ -1645,17 +1375,315 @@ choose case ls_search
 			--validate policy on no of months a/r min requirement - end
 			----------------------------------------------------------
 		
-		--END VALIDASI F_OVERIDE
-	
-		------------------------------------------------------------			
-		--validate policy on no of months a/r min requirement - end
-		------------------------------------------------------------
-	
+		--END VALIDASI F_OVERRIDEARREARSPOLICYTYPE
+		
+			------------------------------------------------------------			
+			--validate policy on no of months a/r min requirement - end
+			------------------------------------------------------------
+	--case	
 end choose
 
 return 
- 
---END EVENT UE_SEARCH_ACCTNO  
+
+--END EVENT UE_SEARCH_ACCTNO
+
+
+--EVENT ITEMCHANGE DW_HEADER
+long ll_row, ll_success
+string ls_search, ls_result, ls_acctNo
+
+string ls_subscriberName, ls_serviceAddress, ls_billingAddress
+string ls_package, ls_packageType
+string ls_subscriberStatus, ls_chargeType
+string ls_subscriberType, ls_subscriberUserType
+decimal{2} ld_occupancyRate, ld_monthlyMlineFee, ld_monthlyExtFee
+long ll_noOfExt, ll_noOfSTB
+datetime ldtme_dateofdeactivation
+ls_acctNo = trim(data)
+
+if dwo.name = 'acctno' then
+
+	if not iuo_subscriber.setAcctNo(ls_acctNo) then
+		guo_func.msgbox("Warning!", iuo_subscriber.lastSQLCode + "~r~n" + iuo_subscriber.lastSQLErrText)
+		return 2
+	end if
+	
+	--subscrber name
+	ls_subscriberName = iuo_subscriber.subscriberName 
+	dw_header.setItem( 1, "subscriberName", ls_subscriberName )
+	
+	--service address
+	if not iuo_subscriber.getServiceAddress(ls_serviceAddress) then
+		guo_func.msgbox("Warning!", iuo_subscriber.lastSQLCode + "~r~n" + &
+			iuo_subscriber.lastSQLErrText)
+		return 2
+	end if
+	dw_header.setItem( 1, "serviceAddress", ls_serviceAddress )
+	
+	--billing address
+	if not iuo_subscriber.getBillingAddress(ls_billingAddress) then
+		guo_func.msgbox("Warning!", iuo_subscriber.lastSQLCode + "~r~n" + &
+			iuo_subscriber.lastSQLErrText)
+		return 2
+	end if
+	dw_header.setItem( 1, "billingAddress", ls_billingAddress )
+	
+	--package 
+	if not iuo_subscriber.getPackageName(ls_package) then
+		guo_func.msgbox("Warning!", iuo_subscriber.lastSQLCode + "~r~n" + &
+			iuo_subscriber.lastSQLErrText)
+		return 2
+	end if
+	dw_header.setItem( 1, "package", ls_package )
+	
+	--general package 
+	if not iuo_subscriber.getpackageTypeName(ls_packageType) then
+		guo_func.msgbox("Warning!", iuo_subscriber.lastSQLCode + "~r~n" + &
+			iuo_subscriber.lastSQLErrText)
+		return 2
+	end if
+	dw_header.setItem( 1, "packageType", ls_packageType )		
+	
+	--subscriber status
+	if not iuo_subscriber.getSubscriberStatusName(ls_subscriberStatus) then
+		guo_func.msgbox("Warning!", iuo_subscriber.lastSQLCode + "~r~n" + &
+			iuo_subscriber.lastSQLErrText)
+		return 2
+	end if
+	dw_header.setItem( 1, "subscriberStatus", ls_subscriberStatus )				
+	
+	--charge type
+	if not iuo_subscriber.getchargeTypeName(ls_chargeType) then
+		guo_func.msgbox("Warning!", iuo_subscriber.lastSQLCode + "~r~n" + &
+			iuo_subscriber.lastSQLErrText)
+		return 2
+	end if
+	dw_header.setItem( 1, "chargeType", ls_chargeType )				
+	
+	--subscriber Type
+	if not iuo_subscriber.getSubsTypeName(ls_subscriberType) then
+		guo_func.msgbox("Warning!", iuo_subscriber.lastSQLCode + "~r~n" + &
+			iuo_subscriber.lastSQLErrText)
+		return 2
+	end if
+	dw_header.setItem( 1, "subscriberType", ls_subscriberType )				
+	
+	--subscriber User Type
+	if not iuo_subscriber.getSubsUserTypeName(ls_subscriberUserType) then
+		guo_func.msgbox("Warning!", iuo_subscriber.lastSQLCode + "~r~n" + &
+			iuo_subscriber.lastSQLErrText)
+		return 2
+	end if
+	dw_header.setItem( 1, "subscriberUserType", ls_subscriberUserType )				
+	
+	--monthly Mline Fee
+	if not iuo_subscriber.getMlineMonthlyRate(ld_monthlyMlineFee) then
+		guo_func.msgbox("Warning!", iuo_subscriber.lastSQLCode + "~r~n" + &
+			iuo_subscriber.lastSQLErrText)
+		return 2
+	end if
+	dw_header.setItem( 1, "monthlyRate", ld_monthlyMlineFee )							
+	
+	dw_header.acceptText()
+	
+	
+	--get re-activation fee
+	--first get the last de-activation trans 
+	
+	string ls_previous_deAc_tranno
+	long ll_noOfRequiredSTB
+	
+	select max(tranNo)
+	into :ls_previous_deAc_tranno
+	FROM 		deactivationTranHdr
+	WHERE 	acctno = :ls_acctNo
+	and divisionCode = :gs_divisionCode
+	and companyCode = :gs_companyCode
+	USING SQLCA;			
+	If SQLCA.SQLcode <> 0 then
+		messagebox('SM-0000001',"select in  deacMLineExtTranHdr SQLCode    : "+string(SQLCA.SQLCode) + "SQLErrText : " + SQLCA.SQLErrText)
+		return 2
+	end if		
+	if isnull(ls_previous_deAc_tranno) then
+			ls_previous_deAc_tranno = ' '
+		end if
+	if isnull(ls_previous_deAc_tranno) then
+		messagebox('SM-0000001',"select in  deacMLineExtTranHdr SQLCode    : "+string(SQLCA.SQLCode) + "SQLErrText : " + SQLCA.SQLErrText)
+		return 2
+	end if
+	
+
+	select 	activationIntendedDate, 
+				gracePeriodDatefrom, 
+				gracePeriodDateto, 
+				startOfAutoPermDiscDate, 
+				noOfSTBPulledOut, 
+				trandate
+	into 		:idt_activationIntendedDate, 
+				:idt_gracePeriodDatefrom, 
+				:idt_gracePeriodDateto,
+				:idt_startOfAutoPermDiscDate, 
+				:ll_noOfRequiredSTB, 
+				:ldtme_dateofdeactivation
+	FROM 		applOfDeActivationTranHdr
+	WHERE 	acctno = :ls_acctNo
+	and divisionCode = :gs_divisionCode
+	and companyCode = :gs_companyCode
+	USING SQLCA;			
+	If SQLCA.SQLcode <> 0 then
+		messagebox('SM-0000001',"select in  deacMLineExtTranHdr SQLCode    : "+string(SQLCA.SQLCode) + "SQLErrText : " + SQLCA.SQLErrText)
+		return 2		
+	end if	
+	
+	if isnull(idt_activationIntendedDate) then 
+		guo_func.msgbox("De-activation record error.", "Activation Intended Date is null")
+		return 2
+	end if
+		
+	if isnull(idt_gracePeriodDatefrom) then 			
+		guo_func.msgbox("De-activation record error.", "Grace Period Date is null")
+		return 2
+	end if
+	
+	if isnull(idt_gracePeriodDateTo) then 			
+		guo_func.msgbox("De-activation record error.", "Grace Period Date is null")
+		return 2
+	end if
+
+	if isnull(idt_startOfAutoPermDiscDate) then 
+		guo_func.msgbox("De-activation record error.", "Start Of Auto Permanent Disconnnection Date is null")
+		return 2
+	end if			
+				
+	
+	--set the noOfRequiredSTB
+	dw_header.setitem( 1, "datelastdeactivated",ldtme_dateofdeactivation)
+	string ls_subsTypeCode
+	ls_subsTypeCode = iuo_subscriber.subsTypeCode
+	
+	id_reacFee = 0.00
+	
+	select reactivationFee
+	into :id_reacFee
+	FROM 		arpackageMaster
+	WHERE 	packageCode = :ls_package
+	and divisionCode = :gs_divisionCode
+	and companyCode = :gs_companyCode
+	USING SQLCA;			
+	If SQLCA.SQLcode = -1 then
+		messagebox('SM-0000001',"select in arpackageMaster SQLCode    : "+string(SQLCA.SQLCode) + "SQLErrText : " + SQLCA.SQLErrText)
+		return 2
+	end if		
+	
+	if isnull(id_reacFee) then id_reacFee = 0.00
+	
+	
+	--compute for required inital payment
+	if uf_prepare_required_initial_payment() = -1 then
+		guo_func.msgbox("Computation for initial required payment error.", "Cannot compute for initial required payment, incomplete de-activation.")
+		return 2
+	end IF
+	
+	--VALIDASI uf_prepare_required_initial_payment
+				
+				--call compute required initial payment
+				long ll_rows, ll_success
+				string ls_subsTypeCode, ls_packageCode, ls_chargeTypeCode, ls_acquisitionTypeCode
+				
+				ls_subsTypeCode  = iuo_subscriber.subsTypeCode
+				ls_packageCode = iuo_subscriber.packageCode
+				ls_chargeTypeCode = iuo_subscriber.chargeTypeCode
+				
+				ll_rows = idw_ReqInitPayment.rowCount()
+				
+				if not isnull(ls_subsTypeCode) then
+					if not isnull(ls_packageCode) then
+						if not isnull(ls_chargeTypeCode) then				
+								if ll_rows > 0 then
+									ll_success = uf_compute_req_init_payment_reac2(	&
+											ls_subsTypeCode, &
+											ls_packageCode, &
+											ls_chargeTypeCode, &
+				 							id_reacFee, &
+											idw_ReqInitPayment )
+											
+									--VALIDASI UF_COMPUTE_REQ_INIT_PAYMENT_REAC2
+											
+											
+										--subscriberType based fees
+										--mLineExtPermanentDiscFee
+										decimal{2} ld_reactivationfee
+										
+										
+										--acquisitionTypeCode based fees
+										long ll_row
+										decimal{2} ld_amount_REACF
+										
+										ld_amount_REACF = 0.00
+										ld_amount_REACF = ad_reactivationfee
+										
+										--chargeType based fees (discounts)
+										
+										--PDF - Permanent Disconnection Fees Required Initial Payment
+										decimal{2} ld_percentDiscount, ld_amountDiscount
+										ld_percentDiscount = 0.00 
+										ld_amountDiscount = 0.00
+										
+										SELECT 	percentDiscount
+										INTO 		:ld_percentDiscount
+										FROM 		chargeTypeDiscountMaster
+										WHERE 	chargeTypeCode = :as_chargeTypeCode and arTypeCode = 'PDF'
+										and divisionCode = :gs_divisionCode
+										and companyCode = :gs_companyCode
+										USING SQLCA;			
+										If SQLCA.SQLcode = -1 then
+											messagebox('SM-0000001',"select in chargeTypeMaster SQLCode    : "+string(SQLCA.SQLCode) + "SQLErrText : " + SQLCA.SQLErrText)
+											return -1
+										end if
+										
+										if isnull(ld_percentDiscount) then ld_percentDiscount = 0.00 
+										if ld_percentDiscount > 0.00 then
+											ld_amountDiscount = ( ld_amount_REACF * (ld_percentDiscount/100) )
+											ld_amount_REACF = ld_amount_REACF - ld_amountDiscount
+											if ld_amount_REACF < 0.00 then 
+												ld_amount_REACF = 0.00
+											end if
+										end if
+										
+										
+										--update datawindow for required initial payment
+										ll_row = adw_ReqInitPayment.find("arTypeCode='REACF'",1,adw_ReqInitPayment.rowCount())		
+										adw_ReqInitPayment.scrollToRow( ll_row )						
+										if ll_row > 0 then
+											adw_ReqInitPayment.setItem( ll_row, "amount", ld_amount_REACF )
+										end if		
+										
+										adw_ReqInitPayment.acceptText()
+										
+										
+										
+										return 0
+
+
+									--END VALDIASI	 UF_COMPUTE_REQ_INIT_PAYMENT_REAC2	
+								end if			
+						end if
+					end if
+				end if
+									
+				return 0
+				
+				return 0
+				
+				--END VALIDASI uf_prepare_required_initial_payment
+				
+	dw_header.setColumn( 'preferredDateTimeFrom' )
+	
+--noofextension must be greater than zero
+
+end if
+	
+--END EVENT
 
 --BUTTON NEW
 
@@ -1669,7 +1697,7 @@ decimal{2} ld_amount, ld_stbdeposit, ld_materialsstbadvances, ld_installationfee
 select priority 
 into :ll_priority	
 from arTypeMaster 	
-where arTypeCode = 'REACF' 	
+where arTypeCode = 'REACF' 
 and divisionCode = :gs_divisionCode
 and companyCode = :gs_companyCode
 using SQLCA;
@@ -1697,7 +1725,7 @@ if not guo_func.get_nextnumber('APPLMLEXTREA', ll_applExt, "") then
 	return
 end IF
 
---VALIDASI guo_func.get_nextnumber
+-VALIDASI guo_func.get_nextnumber
 
 	f_displayStatus("Retrieving next transaction # for " + as_trantype + "...")
 
@@ -1788,7 +1816,30 @@ ll_currentRow = dw_header.getRow()
 idt_tranDate = guo_func.get_server_date()
 ldt_today = guo_func.get_server_dateTime()
 
---VALIDASI GET-SERVER_DATETIME
+--VALIDASI GET_SERVER_DATE
+
+datetime ldt_datetime
+date		ldt_date
+select sysdate into :ldt_datetime 
+from systemparameter 
+where divisionCode = :gs_divisionCode
+and companyCode = :gs_companyCode
+using SQLCA;
+if SQLCA.sqlcode <> 0 then
+	select sysdate into :ldt_datetime from DUAL where rownum < 2 using SQLCA;
+	if SQLCA.sqlcode < 0 then
+		guo_func.msgbox('Warning!', 'Unable to get server date')
+		lastSQLCode	= string(SQLCA.SQLCode)
+		lastSQLErrText	= SQLCA.SQLErrText
+	end if
+end if
+ldt_date = date(ldt_datetime)
+ldt_datetime = datetime(ldt_date)
+return ldt_datetime
+
+--END VALIDASI GET_SERVER_DATE
+
+--VALIDASI get_server_dateTime
 
 datetime ldt_datetime
 select sysdate into :ldt_datetime 
@@ -1807,8 +1858,7 @@ end if
 
 return ldt_datetime
 
---END VALIASI GET_SERVER_DATETIME
-
+--END VALIDASI get_server_dateTime
 
 --Set default Values
 dw_header.setitem(1 , "tranNo", ls_applExt) 
@@ -1823,8 +1873,6 @@ pb_close.enabled = false
 
 pb_save.enabled = true
 pb_cancel.enabled = true
-
-
 
 --END BUTTON NEW
 
@@ -1841,9 +1889,10 @@ End If
 
 if not guo_func.get_nextNumber(is_transactionID, ll_tranNo, "WITH LOCK") then			
 	return -1
-end IF
+end if	
 
 --VALIDASI GET_NEXTNUMBER
+
 f_displayStatus("Retrieving next transaction # for " + as_trantype + "...")
 
 string	ls_lockedby
@@ -1923,7 +1972,7 @@ end if
 al_tranNo = al_tranNo + 1
 f_closeStatus()
 
-return TRUE
+return true
 
 --END VALIDASI GET_NEXTNUMBER
 
@@ -1932,6 +1981,7 @@ if	not guo_func.set_number(is_transactionID, ll_tranNo) then
 end IF
 
 --VALIDASI SET_NUMBER
+
 update sysTransactionParam
 	set recordLocked = 'N',
 		 lockedUserName = '',
@@ -1956,34 +2006,37 @@ end if
 commit using SQLCA;
 
 return true
---END VALIDASI SET_NUMBER
+
+--END VALIDASI
 
 idt_tranDate = guo_func.get_server_datetime()
 is_tranNo = string(ll_tranNo, '00000000')
 
---VALIDASI GET-SERVER_DATETIME
+--VALIDASI GET_SERVER_DATE
 
 datetime ldt_datetime
+date		ldt_date
 select sysdate into :ldt_datetime 
 from systemparameter 
 where divisionCode = :gs_divisionCode
 and companyCode = :gs_companyCode
 using SQLCA;
 if SQLCA.sqlcode <> 0 then
-	select sysdate into :ldt_datetime from systemparameter where rownum < 2 using SQLCA;
+	select sysdate into :ldt_datetime from DUAL where rownum < 2 using SQLCA;
 	if SQLCA.sqlcode < 0 then
 		guo_func.msgbox('Warning!', 'Unable to get server date')
 		lastSQLCode	= string(SQLCA.SQLCode)
 		lastSQLErrText	= SQLCA.SQLErrText
 	end if
 end if
-
+ldt_date = date(ldt_datetime)
+ldt_datetime = datetime(ldt_date)
 return ldt_datetime
 
+--END VALIDASI GET_SERVER_DATE
 
---END VALIASI GET_SERVER_DATETIME
 
-
+--NOT USE ANYMORE
 --==================================================
 --NGLara | 03-31-2008
 --Prepare GL Poster
@@ -1992,17 +2045,15 @@ if not iuo_glPoster.initialize(is_transactionID, is_tranNo, idt_tranDate) then
 	is_msgtrail = iuo_glPoster.errorMessage
 	is_sugtrail = iuo_glPoster.suggestionRemarks
 	return -1
-end if
-uo_subs_advar.setGLPoster(iuo_glPoster)
---~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+end IF
 
+uo_subs_advar.setGLPoster(iuo_glPoster)
 
 ls_acctNo = dw_header.getItemString( 1, "acctNo" )
 
-
-if is_serviceType = 'CTV' then
-	
-		--ray 09102013 now we will update the subscribers info in aracctsubscriber's dateofreactivation CTV 
+if is_serviceType = 'INET' then
+		
+		--ray 09102013 now we will update the subscribers info in aracctsubscriber's dateofreactivation INET 
 		
 		update arAcctSubscriber
 		set dateReactivated = :idt_tranDate
@@ -2011,22 +2062,20 @@ if is_serviceType = 'CTV' then
 		and companyCode = :gs_companyCode
 		using SQLCA;
 		if SQLCA.SQLCode <> 0 then
-			guo_func.MsgBox('SQL Error...','Error in update arAcctSubscriber dateReactivated CTV' + &
+			guo_func.MsgBox('SQL Error...','Error in update arAcctSubscriber dateReactivated INET' + &
 								 '~r~nUpdate table [arAcctSubscriber] update error...' + &
 								 '~r~n~r~nSQL Error Code : ' + string(SQLCA.SQLCode) + &
 								 '~r~nSQL Error Text : ' + SQLCA.SQLErrText)
 								 return -1
 		end if	
-		
 end if 
-
-
+	
 --save record to applofmlineextpermdischdranddtl
 if trigger event ue_save_applOfMlineExtReAcTranHdr(ls_acctno) = -1 then
    return -1
 end IF
 
---VALIDASI UE_SAVE_APPLOFMLINEEXTREACTRANHDR
+--VALIDASI EVENT UE_SAVE_APPLOFMLINEEXTREACTRANHDR
 
 string 	ls_refTranNo
 string 	ls_acctNo, ls_userAdd
@@ -2034,7 +2083,7 @@ string 	ls_specialInstructions
 string 	ls_reason, ls_disconnectionreasonCode, ls_referenceJONo
 datetime ldt_preferreddatetimefrom, ldt_preferreddatetimeto						
 datetime ldt_dateadd 
-long 		ll_row, ll_noOfRequiredSTB, ll_noOfCPE
+long 		ll_row, ll_noOfRequiredSTB
 
 string 		ls_chargeTypeCode, ls_subsUserTypeCode, ls_packageCode, ls_subscriberStatusCode, ls_subsTypeCode
 long 			ll_numberOfRooms
@@ -2043,47 +2092,39 @@ decimal{2} 	ld_occupancyRate, ld_reAcFee, ld_reAcFeeDiscount, ld_extendedFeeAmou
 ll_row = dw_header.getrow()
 
 dw_detail.acceptText() 
-dw_header.acceptText() 
 idw_reqInitPayment.acceptText()
 
 
 --get subscriber information
 ls_acctNo 						= trim(as_acctno)
-ll_noOfRequiredSTB			= dw_header.getItemNumber(ll_row, "noofrequiredstb")
-ll_noOfCPE						= dw_header.getitemNumber(ll_row,'noOfRequiredCPE')
 ldt_preferreddatetimefrom	= dw_header.getItemDateTime(ll_row, "preferreddatetimefrom")
 ldt_preferreddatetimeto		= dw_header.getItemDateTime(ll_row, "preferreddatetimeto")
-ls_specialInstructions			= trim(dw_header.getItemString(ll_row, "specialInstructions"))
+ls_specialInstructions		= trim(dw_header.getItemString(ll_row, "specialInstructions"))
 
-ls_chargeTypeCode			= trim(dw_header.getItemString(ll_row, "chargetypecode"))
+ls_chargeTypeCode			= trim(dw_header.getItemString(ll_row, "chargeTypeCode"))
 ls_subsUserTypeCode			= trim(dw_header.getItemString(ll_row, "subsusertypecode"))
-ls_packageCode				= trim(dw_header.getItemString(ll_row, "packagecode"))
-ls_subscriberStatusCode		= trim(dw_header.getItemString(ll_row, "subscriberstatuscode"))
-ls_subsTypeCode				= trim(dw_header.getItemString(ll_row, "substypecode"))
-ll_numberOfRooms			= dw_header.getItemNumber(ll_row, "noofrooms")
-
-ld_occupancyRate				= dw_header.getItemDecimal(ll_row, "occupancyRate")
+ls_packageCode					= trim(dw_header.getItemString(ll_row, "packagecode"))
+ls_subscriberStatusCode		= trim(dw_header.getItemString(ll_row, "subscriberStatusCode"))
+ls_subsTypeCode				= trim(dw_header.getItemString(ll_row, "subsTypeCode"))
 
 --Validation
 if ls_acctno = '' or isnull(ls_acctno) then
 	is_msgNo    = 'SM-0000001'
-	is_msgTrail = "Cannot save with unknown Account No."
+	is_msgTrail = "Saving Subscriber Master : ~r~n Cannot save with unknown Account No."
 	return -1
 end if	
 
-uo_subscriber_def luo_subscriber
-luo_subscriber = create uo_subscriber_def
-
+uo_subscriber luo_subscriber
 s_appldeacinfo str_appldeacinfo
 
 if not luo_subscriber.setAcctNo(ls_acctno) then
 	is_msgNo		= 'SM-0000001!'
-	is_msgTrail 	= luo_subscriber.lastSQLCode + '~r~n' + luo_subscriber.lastSQLErrText + &
+	is_msgTrail = luo_subscriber.lastSQLCode + '~r~n' + luo_subscriber.lastSQLErrText + &
 					  '~r~n Method Name : luo_subscriber.setAcctNo()'
 	return -1
 end IF
 
---VALIDASI LIO_SUBRIBER.SETACCTNO
+--VALIDASI lUO_SUBCRIBER.SETACCTNO
 
 lastMethodAccessed = 'setAcctNo'
 
@@ -2155,12 +2196,12 @@ datePermanentlyDisconnected,
 dateReactivated,
 qtyAcquiredSTB,
 totalBoxesBeforeDeactivation,
-nvl(numberOfRooms,0),
-nvl(occupancyRate,0),
-nvl(mLineCurrentMonthlyRate,0), 
-nvl(mLinePreviousMonthlyRate,0),
-nvl(extCurrentMonthlyRate,0) ,
-nvl(extPreviousMonthlyRate,0),
+numberOfRooms,
+occupancyRate, 
+mLineCurrentMonthlyRate, 
+mLinePreviousMonthlyRate,
+extCurrentMonthlyRate, 
+extPreviousMonthlyRate,
 withAdvances,
 locked,
 lockedBy,
@@ -2171,27 +2212,14 @@ agentCode,
 useradd,
 dateadd,
 currencyCode,
-password,
-subsUserName,
 nodeNo,
 servicePostNo,
-service.CompleteAddress,
-b.completeAddress,
-c.completeAddress,
-billing.CompleteAddress,
+subsUserName,
+password,
 bundledCTVAcctNo,
 bundledINETAcctNo,
-lockinperiod,
-mobileno2,
-mobileno3,
-emailaddress2,
-emailaddress3,
-nameofcompany,
-guarantor,
-spousename,
-lockinPeriod,
-daterelockin,
-from_NOCOICOP
+from_nocoicop,
+NOCOICOP
 
 into 
 
@@ -2276,50 +2304,29 @@ into
 :useradd,
 :dateadd,
 :currencyCode,
-:password,
-:subsUserName,
 :nodeNo,
 :servicePostNo,
-:siteA,
-:siteB,
-:businessAdd,
-:billingAdd,
+:subsUserName,
+:password,
 :bundledCTVAcctNo,
 :bundledINETAcctNo,
-:lockinperiod,
-:mobileno2,
-:mobileno3,
-:emailaddress2,
-:emailaddress3,
-:nameofcompany,
-:guarantor,
-:spousename,
-:lockinPeriod,
-:daterelockin,
-:from_NOCOICOP
-from arAcctSubscriber
-inner join vw_arAcctAddress billing on billing.acctNo  = arAcctSubscriber.acctNo 
-	and billing.addressTypeCode = 'BILLING' 
-	and billing.divisionCode  = arAcctSubscriber.divisionCode 
-	and billing.companyCode = arAcctSubscriber.companyCode 
-inner join vw_arAcctAddress service on service.acctNo  = arAcctSubscriber.acctNo 
-	and service.addressTypeCode = 'SERVADR1' 
-	and service.divisionCode  = arAcctSubscriber.divisionCode 
-	and service.companyCode = arAcctSubscriber.companyCode 
-left join vw_arAcctAddress b on b.acctNo  = arAcctSubscriber.acctNo
-	and b.addressTypeCode = 'SERVADR2' 
-	and b.divisionCode  = arAcctSubscriber.divisionCode 
-	and b.companyCode = arAcctSubscriber.companyCode 
-left join vw_arAcctAddress c on c.acctNo  = arAcctSubscriber.acctNo 
-	and c.addressTypeCode = 'BUSINESS' 
-	and c.divisionCode  = arAcctSubscriber.divisionCode 
-	and c.companyCode = arAcctSubscriber.companyCode 
+:from_nocoicop,
+:NOCOICOP
 
+from
 
+arAcctSubscriber
+inner join vw_arAcctAddress billing on arAcctSubscriber.acctNo = billing.acctNo
+      and billing.addressTypeCode = 'BILLING' 
+		and billing.divisionCode = :gs_divisionCode
+		and billing.companyCode = :gs_companyCode
+inner join vw_arAcctAddress service on arAcctSubscriber.acctNo = service.acctNo 
+      and service.addressTypeCode = 'SERVADR1' 
+		and service.divisionCode = :gs_divisionCode
+		and service.companyCode = :gs_companyCode	
 where arAcctSubscriber.acctNo = :acctNo
-and arAcctSubscriber.divisionCode = :gs_divisionCode 
+and arAcctSubscriber.divisionCode = :gs_divisionCode
 and arAcctSubscriber.companyCode = :gs_companyCode
-AND ARACCTSUBSCRIBER.DBDIRECTION <> 'HOBS'
 and rownum < 2
 
 using SQLCA;
@@ -2332,6 +2339,8 @@ elseif SQLCA.sqlcode = 100 then
 	lastSQLErrText	= "The account number you've just entered does not exist."
 	return FALSE
 end if
+
+
 
 select accountTypeCode
 into :accountTypeCode
@@ -2361,7 +2370,7 @@ if SQLCA.sqlcode < 0 then
 	return FALSE
 elseif SQLCA.sqlcode = 100 then
 	lastSQLCode		= string(SQLCA.sqlcode)
-	lastSQLErrText	= "The customer type code [" + chargeTypeCode + "] does not exist."
+	lastSQLErrText	= "The charge type code [" + chargeTypeCode + "] does not exist."
 	return FALSE
 end if
 
@@ -2396,8 +2405,8 @@ elseif SQLCA.sqlcode = 100 then
 	return FALSE
 end if
 
-select serviceType, isDigital
-into :serviceType, :isDigital
+select serviceType
+into :serviceType
 from arPackageMaster
 where packageCode = :packageCode
 and divisionCode = :gs_divisionCode
@@ -2431,8 +2440,8 @@ elseif serviceType = 'INET' then
 	 where a.packageTypeCode = b.packageTypeCode
 		and a.divisionCode = :gs_divisionCode
 		and a.companyCode = :gs_companyCode
-		and b.companyCode = :gs_companyCode
 		and b.divisionCode = :gs_divisionCode
+		and b.companyCode = :gs_companyCode
 		and a.packageCode = :packageCode
 	 using SQLCA;
 	if SQLCA.sqlcode < 0 then
@@ -2446,30 +2455,12 @@ elseif serviceType = 'INET' then
 	end if
 	
 	if not isnull(cmProfileCode) then
-
-		select ubrType
-		into :ubrType
-		from nodesInIPCommander
-		where nodeNo = :nodeNo
-		and divisionCode = :gs_divisionCode
-		and companyCode = :gs_companyCode
-		using SQLCA;
-		
-		select clientClassValue
-		into :clientClassValue
-		from clientClassValueMaster
-		where cmProfileCode = :cmProfileCode
-		and ubrType = :ubrType
-		and divisionCode = :gs_divisionCode
-		and companyCode = :gs_companyCode
-		using SQLCA;		
-
 		select cmProfileName, vLan
 		  into :cmProfileName, :vLan
 		  from cmProfileMaster
 		 where cmProfileCode = :cmProfileCode
 		 and divisionCode = :gs_divisionCode
-		and companyCode = :gs_companyCode
+			and companyCode = :gs_companyCode
 		using SQLCA;
 		if SQLCA.sqlcode = 100 then 
 			lastSQLCode = string(SQLCA.sqlcode)
@@ -2499,9 +2490,8 @@ elseif SQLCA.sqlcode = 100 then
 	return FALSE
 end if
 
-//~~~~~~~~~~~~~~~~~~CURRENCY~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 if isNull(currencyCode) then
-	currencyCode = 'PHP'
+	currencyCode = ''
 end if
 
 select conversionRate
@@ -2519,38 +2509,9 @@ elseif SQLCA.sqlcode = 100 then
 	return FALSE
 end if
 
-select conversionRate
-into :dollarRate
-from currencyMaster
-where currencyCode = 'USD'
-using SQLCA;
-if SQLCA.SQLCode < 0 then
-	lastSQLCode	= string(SQLCA.SQLCode)
-	lastSQLErrText	= SQLCA.SQLErrText
-	return FALSE
-end if
-
-
-select acctNo into :fullAccountNumber
-from vw_fullAcctNo
-where ibas_acctNo = :as_acctNo
-and divisionCode = :gs_divisionCode
-and companyCode = :gs_companyCode
-using SQLCA;
-
-
-
 return TRUE
 
---END VALIDASI
-
-if luo_subscriber.isDigital <> 'Y' and is_serviceType = 'CTV' and ll_noOfCPE > 0 then
-	if not(ll_noOfRequiredSTB  >  0 and ll_noOfRequiredSTB <= ll_noOfCPE) then
-		is_msgNo		= 'SM-0000001!'
-		is_msgTrail 	="No. of Reactivated CPE must be greater than 0 and less than or equal to No. of Required CPE."
-		return -1
-	end if
-end if
+--END VALIDASI IUO_SUBCRIBER.SETACCTNO
 
 if not luo_subscriber.getApplDeacInfo(str_appldeacinfo) then
 	is_msgNo		= 'SM-0000001!'
@@ -2559,9 +2520,9 @@ if not luo_subscriber.getApplDeacInfo(str_appldeacinfo) then
 	return -1
 end IF
 
---VALIDASI GETAPPLDEACINFO
+--VALIDASI LIO_SUBRIBER.GETAPPLDEACINFO
 
- select tranNo,
+  select tranNo,
   			tranDate,
 			noOfExtension,
 			noOfSTBDeActivated,
@@ -2569,9 +2530,8 @@ end IF
 			gracePeriodDateFrom,
 			gracePeriodDateTo,
 			startOfAutoPermDiscDate,
-			preferredDateTimeFrom,
-			referenceJONo
- into :as_applDeacInfo.tranNo,
+			preferredDateTimeFrom
+  	 into :as_applDeacInfo.tranNo,
   		 	:as_applDeacInfo.tranDate,
   		 	:as_applDeacInfo.noOfExt,
   		 	:as_applDeacInfo.noofstb,
@@ -2579,26 +2539,14 @@ end IF
   		 	:as_applDeacInfo.gracePeriodDateFrom,
   		 	:as_applDeacInfo.gracePeriodDateTo,
   		 	:as_applDeacInfo.startOfAutoPermDiscDate,
-			:as_applDeacInfo.preferredDateTimeFrom,
-			:as_applDeacInfo.joNo
-			from ( select tranNo,
-  			tranDate,
-			noOfExtension,
-			noOfSTBDeActivated,
-			activationIntendedDate,
-			gracePeriodDateFrom,
-			gracePeriodDateTo,
-			startOfAutoPermDiscDate,
-			preferredDateTimeFrom,
-			referenceJONo
-  	 
+			:as_applDeacInfo.preferredDateTimeFrom
   	 from applOfDeactivationTranHdr
   	where acctNo = :acctNo
-	  and divisionCode = :gs_divisionCode
-and companyCode = :gs_companyCode
-and applicationStatusCode <> 'CN'
-order by tranNo desc) 
-where rownum < 2
+	 and divisionCode = :gs_divisionCode
+	and companyCode = :gs_companyCode
+	and applicationStatusCode <> 'CN'
+	and rownum < 2
+	order by tranNo desc
 	using SQLCA;
 if SQLCA.sqlCode < 0 then
 	lastSQLCode = string(SQLCA.sqlcode)
@@ -2608,9 +2556,24 @@ end if
 
 return TRUE
 
---END VALIDASI GETAPPLDEACINFO
+--END VALIDASI GETAPPDEACINFO
 
---if isNull(ll_noOfRequiredSTB) then ll_noOfRequiredSTB = 0
+select count(serialNo)
+into :ll_noOfRequiredSTB
+from applOfDeactivationTranDtl
+where tranNo = :str_appldeacinfo.tranNo and surrendered = 'Y'
+and divisionCode = :gs_divisionCode
+and companyCode = :gs_companyCode
+using SQLCA;
+if SQLCA.SQLCode <> 0 then
+	is_msgNo		= 'SM-0000001!'
+	is_msgTrail = 'Error in select table from [applOfDeactivationTranDtl]...' + &
+					  '~r~nSQL Error Code: ' + string(SQLCA.SQLCode) + &
+					  '~r~nSQL Error Text: ' + SQLCA.SQLErrText
+	return -1
+end if
+
+if isNull(ll_noOfRequiredSTB) then ll_noOfRequiredSTB = 0
 
 if ldt_preferredDateTimeto < ldt_preferredDateTimeFrom or isNull(ldt_preferredDateTimeTo) then
 	is_msgNo    = 'SM-0000001'
@@ -2618,10 +2581,8 @@ if ldt_preferredDateTimeto < ldt_preferredDateTimeFrom or isNull(ldt_preferredDa
 	return -1
 end if
 
---validate preferred date time from < to
-
---Insert record for applOfReactivationTranHdr
-INSERT INTO applOfReactivationTranHdr
+--Insert record for applofmlineextreactranhdr
+INSERT INTO applofReactivationtranhdr
 		(
 		tranNo,
 		tranDate,
@@ -2683,21 +2644,12 @@ if SQLCA.SQLCode = -1 then
 	return -1
 end if
 
-update applOfDeactivationTranHdr
-set applicationStatusCode = 'AC'
-where tranNo = :is_deacTranNo
-and acctNo = :ls_acctNo
-and divisionCode = :gs_divisionCode
-and companyCode = :gs_companyCode
-using SQLCA;
-
---activate all serialnos of stbs whose deactivationTranDtl.acquisitionTypeCode = 'BUY'
 
 return 0
 
 
 
---END VALIDASI UE_SAVE_APPLOFMLINEEXTREACTRANHDR
+--VALIDASI EVENT UE_SAVE_APPLOFMLINE
 
 --create records on subsInitialPayment
 if trigger event ue_save_subsInitialPayment(ls_acctno, ld_reacFee) = -1 then
@@ -2706,7 +2658,7 @@ if trigger event ue_save_subsInitialPayment(ls_acctno, ld_reacFee) = -1 then
 	return -1
 end IF
 
---VALIDASI ue_save_subsInitialPayment
+--VALIDASI UE_SAVE_SUBINITIALPAYMENT
 
 long ll_priority, ll_row,  ll_rows, ll_loop
 string ls_acctno, ls_tranTypeCode, ls_arTypeCode, ls_currency
@@ -2766,11 +2718,13 @@ next
 
 return 0
 
---END VALIDASI ue_save_subsInitialPayment
+
+--END VALIDASI UE_SAVE_SUBINITIALPAYMENT
 
 --==================================================
 --Apply Open Credits
 --~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 if not uo_subs_advar.setAcctNo(ls_acctno) then
 	is_msgNo    = 'SM-0000001'
 	is_msgTrail = uo_subs_advar.lastSQLCode + '~r~n' + uo_subs_advar.lastSQLErrText
@@ -2859,7 +2813,7 @@ elseif SQLCA.sqlcode = 100 then
 	subjectToVat = 'N'
 end if
 
-//added codes for currency
+--added codes for currency
 select conversionRate
 into   :conversionRate
 from   currencyMaster
@@ -2895,7 +2849,7 @@ if	This.Event ue_applyOCBalances(ld_reacFee) <> 0 then
 	return -1	
 end IF
 
---VALIDASI UE_APPLUOCBALANCES
+--VALIDASI UE_APPLYOCBALANCE
 
 if not uo_subs_advar.getOcNextTranNo() then
 	is_msgno = 'SM-0000001'
@@ -2906,104 +2860,104 @@ end IF
 
 --VALIDASI uo_subs_advar.getOcNextTranNo()
 	 
-		lastMethodAccessed = 'getOCNextTranNo'
+	lastMethodAccessed = 'getOCNextTranNo'
 
-		long ll_tranNo
-		if not guo_func.get_nextnumber('OPENCR', ll_tranNo, 'WITH LOCK') then	
-			lastSQLCode = '-2'
-			lastSQLErrText = 'Could not obtain the next OC No.'
-			return FALSE
-		end IF
-		
-		--VALIDASI guo_func.get_nextnumber
-			f_displayStatus("Retrieving next transaction # for " + as_trantype + "...")
-
-				string	ls_lockedby
-				
-				if as_tranType = 'SCSREQUEST' then
-					
-					update systransactionparam
-					set recordlocked = 'N',
-					lockedusername = ''
-					where tranTypeCode = :as_tranType 
-							and divisionCode = :gs_divisionCode
-							and companyCode = :gs_companyCode
-							and  recordlocked = 'Y'
-					using SQLCA;
-					
-				end if 
-				
-				select lockedUserName
-				  		into :ls_lockedby
-				from sysTransactionParam
-				 		where tranTypeCode = :as_tranType 
-				 		and divisionCode = :gs_divisionCode
-				 		and companyCode = :gs_companyCode
-				using SQLCA;
-				if SQLCA.sqlcode = 100 then
-					guo_func.msgbox("SM-0000010", as_tranType, "")
-					f_closeStatus()
-					return false
-				elseif SQLCA.sqlcode <> 0 then
-					guo_func.msgbox("SM-0000001", "Select error in sysTransactionParam" + "~r~n" + &
-														  string(SQLCA.sqlcode) 	+ "~r~n" + &
-														  SQLCA.sqlerrtext, "")
-					f_closeStatus()
-					return false
-				end if
-				
-				if as_getmode = "WITH LOCK" then
-					do while true
-						update sysTransactionParam
-							set recordLocked = 'Y',
-								 lockedUserName = :gs_username
-						   where recordLocked = 'N' 
-						   and tranTypeCode = :as_tranType
-						   and divisionCode = :gs_divisionCode
-				 		   and companyCode = :gs_companyCode		 
-						using SQLCA;
-						if SQLCA.sqlnrows < 1 then
-							if guo_func.msgbox("SM-0000011", ls_lockedby, "") = 2 then
-								f_closeStatus()
-								return false
-				 			end if
-						else
-							exit
-						end if
-					loop
-				end if
-				
-				select lastTransactionNo, tranYear
-				      into :al_tranNo, :ii_tranYear
-				from sysTransactionParam
-				      where tranTypeCode = :as_tranType
-				      and divisionCode = :gs_divisionCode
-				 		and companyCode = :gs_companyCode
-				using SQLCA;
-				if SQLCA.sqlcode = 100 then	// record not found
-					guo_func.msgbox("SM-0000010", as_tranType, "")
-					f_closeStatus()
-					return false
-				elseif SQLCA.sqlcode <> 0 then
-					guo_func.msgbox("SM-0000001", "Select error in sysTransactionParam" + "~r~n" + &
-														  string(SQLCA.sqlcode) 	+ "~r~n" + &
-														  SQLCA.sqlerrtext, "")
-					f_closeStatus()
-					return false
-				end if
-				
-				al_tranNo = al_tranNo + 1
-				f_closeStatus()
-				
-				return true
-		--END guo_func.get_nextnumber
-		
-		
-		ocTranNo = ll_tranNo - 1
-		
-		return TRUE
+	long ll_tranNo
+	if not guo_func.get_nextnumber('OPENCR', ll_tranNo, 'WITH LOCK') then	
+		lastSQLCode = '-2'
+		lastSQLErrText = 'Could not obtain the next OC No.'
+		return FALSE
+	end IF
 	
-	--END VALIDASI  getOcNextTranNo
+	--VALIDASI guo_func.get_nextnumber
+		f_displayStatus("Retrieving next transaction # for " + as_trantype + "...")
+
+			string	ls_lockedby
+			
+			if as_tranType = 'SCSREQUEST' then
+				
+				update systransactionparam
+				set recordlocked = 'N',
+				lockedusername = ''
+				where tranTypeCode = :as_tranType 
+						and divisionCode = :gs_divisionCode
+						and companyCode = :gs_companyCode
+						and  recordlocked = 'Y'
+				using SQLCA;
+				
+			end if 
+			
+			select lockedUserName
+			  		into :ls_lockedby
+			from sysTransactionParam
+			 		where tranTypeCode = :as_tranType 
+			 		and divisionCode = :gs_divisionCode
+			 		and companyCode = :gs_companyCode
+			using SQLCA;
+			if SQLCA.sqlcode = 100 then
+				guo_func.msgbox("SM-0000010", as_tranType, "")
+				f_closeStatus()
+				return false
+			elseif SQLCA.sqlcode <> 0 then
+				guo_func.msgbox("SM-0000001", "Select error in sysTransactionParam" + "~r~n" + &
+													  string(SQLCA.sqlcode) 	+ "~r~n" + &
+													  SQLCA.sqlerrtext, "")
+				f_closeStatus()
+				return false
+			end if
+			
+			if as_getmode = "WITH LOCK" then
+				do while true
+					update sysTransactionParam
+						set recordLocked = 'Y',
+							 lockedUserName = :gs_username
+					   where recordLocked = 'N' 
+					   and tranTypeCode = :as_tranType
+					   and divisionCode = :gs_divisionCode
+			 		   and companyCode = :gs_companyCode		 
+					using SQLCA;
+					if SQLCA.sqlnrows < 1 then
+						if guo_func.msgbox("SM-0000011", ls_lockedby, "") = 2 then
+							f_closeStatus()
+							return false
+			 			end if
+					else
+						exit
+					end if
+				loop
+			end if
+			
+			select lastTransactionNo, tranYear
+			      into :al_tranNo, :ii_tranYear
+			from sysTransactionParam
+			      where tranTypeCode = :as_tranType
+			      and divisionCode = :gs_divisionCode
+			 		and companyCode = :gs_companyCode
+			using SQLCA;
+			if SQLCA.sqlcode = 100 then	// record not found
+				guo_func.msgbox("SM-0000010", as_tranType, "")
+				f_closeStatus()
+				return false
+			elseif SQLCA.sqlcode <> 0 then
+				guo_func.msgbox("SM-0000001", "Select error in sysTransactionParam" + "~r~n" + &
+													  string(SQLCA.sqlcode) 	+ "~r~n" + &
+													  SQLCA.sqlerrtext, "")
+				f_closeStatus()
+				return false
+			end if
+			
+			al_tranNo = al_tranNo + 1
+			f_closeStatus()
+			
+			return true
+	--END guo_func.get_nextnumber
+	
+	
+	ocTranNo = ll_tranNo - 1
+	
+	return TRUE
+
+--END VALIDASI  getOcNextTranNo
 
 if not uo_subs_advar.setParentTranNo(is_tranNo) then
 	is_msgno = 'SM-0000001'
@@ -3037,7 +2991,6 @@ end IF
 	joTranTypeCode = as_joTranTypeCode
 	return TRUE
 --END VALIDASI
-
 
 if not uo_subs_advar.setParentTranTypeCode(is_transactionID) then
 	is_msgno = 'SM-0000001'
@@ -3131,6 +3084,7 @@ if ad_applicationFee > 0 then
 
 	
 	--END VALIDASI INSETNEWAR
+		
 end if
 
 if not uo_subs_advar.applyOpenCreditMultiple('', '') then
@@ -4637,7 +4591,8 @@ end IF
 return 0
 
 
---END VALIDASI UE_APPLYUOCBALANCES
+--VALIDASI UE_APPLYOCBALANCE
+
 
 --NOT USE ANYMORE
 if not iuo_glPoster.postGLEntries() then
@@ -4646,6 +4601,8 @@ if not iuo_glPoster.postGLEntries() then
 	is_sugtrail = iuo_glPoster.suggestionRemarks
 	return -1
 end if
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 return 0
 

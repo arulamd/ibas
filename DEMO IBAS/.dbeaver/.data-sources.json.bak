@@ -7,6 +7,7 @@
 			"name": "IBAS_CLONE_HYPERSCAL",
 			"save-password": true,
 			"configuration": {
+				"port": "1521",
 				"database": "IBAS_CLONE_HYPERSCAL",
 				"url": "jdbc:oracle:thin:@(DESCRIPTION \u003d (ADDRESS \u003d (PROTOCOL \u003d TCP)(HOST \u003d ibas4.db.converge.myhsid.com)(PORT \u003d 1521)) (CONNECT_DATA \u003d (SERVER \u003d DEDICATED) (SERVICE_NAME \u003d ibas) ) )",
 				"configurationType": "MANUAL",
@@ -31,7 +32,7 @@
 					"@dbeaver-meta-use-alternative-table-query@": "true",
 					"oracle.meta-search-in-synonyms": "false",
 					"oracle.show-date-as-date": "false",
-					"@dbeaver-tns-path@": "D:\\app\\Network\\Admin",
+					"@dbeaver-tns-path@": "",
 					"@dbeaver-sid-service@": "SERVICE"
 				},
 				"auth-model": "oracle_native"
