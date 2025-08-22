@@ -2773,42 +2773,181 @@ if not uo_subs_advar.getOcNextTranNo() then
 	is_msgtrail = uo_subs_advar.lastSQLCode + "~r~n" + uo_subs_advar.lastSQLErrText
 	is_sugtrail = 'Error produced by uo_subs_advar.getOcNextTranNo()'
 	return -1
-end if
+end IF
+
+--VALIDASI uo_subs_advar.getOcNextTranNo()
+	 
+		lastMethodAccessed = 'getOCNextTranNo'
+
+		long ll_tranNo
+		if not guo_func.get_nextnumber('OPENCR', ll_tranNo, 'WITH LOCK') then	
+			lastSQLCode = '-2'
+			lastSQLErrText = 'Could not obtain the next OC No.'
+			return FALSE
+		end IF
+		
+		--VALIDASI guo_func.get_nextnumber
+			f_displayStatus("Retrieving next transaction # for " + as_trantype + "...")
+
+				string	ls_lockedby
+				
+				if as_tranType = 'SCSREQUEST' then
+					
+					update systransactionparam
+					set recordlocked = 'N',
+					lockedusername = ''
+					where tranTypeCode = :as_tranType 
+							and divisionCode = :gs_divisionCode
+							and companyCode = :gs_companyCode
+							and  recordlocked = 'Y'
+					using SQLCA;
+					
+				end if 
+				
+				select lockedUserName
+				  		into :ls_lockedby
+				from sysTransactionParam
+				 		where tranTypeCode = :as_tranType 
+				 		and divisionCode = :gs_divisionCode
+				 		and companyCode = :gs_companyCode
+				using SQLCA;
+				if SQLCA.sqlcode = 100 then
+					guo_func.msgbox("SM-0000010", as_tranType, "")
+					f_closeStatus()
+					return false
+				elseif SQLCA.sqlcode <> 0 then
+					guo_func.msgbox("SM-0000001", "Select error in sysTransactionParam" + "~r~n" + &
+														  string(SQLCA.sqlcode) 	+ "~r~n" + &
+														  SQLCA.sqlerrtext, "")
+					f_closeStatus()
+					return false
+				end if
+				
+				if as_getmode = "WITH LOCK" then
+					do while true
+						update sysTransactionParam
+							set recordLocked = 'Y',
+								 lockedUserName = :gs_username
+						   where recordLocked = 'N' 
+						   and tranTypeCode = :as_tranType
+						   and divisionCode = :gs_divisionCode
+				 		   and companyCode = :gs_companyCode		 
+						using SQLCA;
+						if SQLCA.sqlnrows < 1 then
+							if guo_func.msgbox("SM-0000011", ls_lockedby, "") = 2 then
+								f_closeStatus()
+								return false
+				 			end if
+						else
+							exit
+						end if
+					loop
+				end if
+				
+				select lastTransactionNo, tranYear
+				      into :al_tranNo, :ii_tranYear
+				from sysTransactionParam
+				      where tranTypeCode = :as_tranType
+				      and divisionCode = :gs_divisionCode
+				 		and companyCode = :gs_companyCode
+				using SQLCA;
+				if SQLCA.sqlcode = 100 then	// record not found
+					guo_func.msgbox("SM-0000010", as_tranType, "")
+					f_closeStatus()
+					return false
+				elseif SQLCA.sqlcode <> 0 then
+					guo_func.msgbox("SM-0000001", "Select error in sysTransactionParam" + "~r~n" + &
+														  string(SQLCA.sqlcode) 	+ "~r~n" + &
+														  SQLCA.sqlerrtext, "")
+					f_closeStatus()
+					return false
+				end if
+				
+				al_tranNo = al_tranNo + 1
+				f_closeStatus()
+				
+				return true
+		--END guo_func.get_nextnumber
+		
+		
+		ocTranNo = ll_tranNo - 1
+		
+		return TRUE
+	
+	--END VALIDASI  getOcNextTranNo
 
 if not uo_subs_advar.setParentTranNo(is_tranNo) then
 	is_msgno = 'SM-0000001'
 	is_msgtrail = uo_subs_advar.lastSQLCode + "~r~n" + uo_subs_advar.lastSQLErrText
 	is_sugtrail = 'Error produced by uo_subs_advar.setParentTranNo()'
 	return -1
-end if
+end IF
+
+--VALIDASI uo_subs_advar.setParentTranNo	
+	parentTranNo = as_tranNo
 
 if not uo_subs_advar.setJoReferenceNo('') then
 	is_msgno = 'SM-0000001'
 	is_msgtrail = uo_subs_advar.lastSQLCode + "~r~n" + uo_subs_advar.lastSQLErrText
 	is_sugtrail = 'Error produced by uo_subs_advar.setJoReferenceNo()'
 	return -1
-end if
+end IF
+
+--VALIDASI SETJOREFRENCENO
+	joRefTranNo = as_joRefNo
+	return TRUE
+
 
 if not uo_subs_advar.setJoTranTypeCode(is_transactionID) then
 	is_msgno = 'SM-0000001'
 	is_msgtrail = uo_subs_advar.lastSQLCode + "~r~n" + uo_subs_advar.lastSQLErrText
 	is_sugtrail = 'Error produced by uo_subs_advar.setJoTranTypeCode()'
 	return -1
-end if
+end IF
+
+--VALIDASI SETJOTRANSTYPECODE
+	joTranTypeCode = as_joTranTypeCode
+	return TRUE
+--END VALIDASI
+
 
 if not uo_subs_advar.setParentTranTypeCode(is_transactionID) then
 	is_msgno = 'SM-0000001'
 	is_msgtrail = uo_subs_advar.lastSQLCode + "~r~n" + uo_subs_advar.lastSQLErrText
 	is_sugtrail = 'Error produced by uo_subs_advar.setParentTranTypeCode()'
 	return -1
-end if
+end IF
+
+--VALIDASI setParentTranTypeCode
+
+	parentTranTypeCode = as_tranTypeCode
+	return TRUE
+
+--END setParentTranTypeCode
 
 if not iuo_currency.setCurrencyCode(iuo_subscriber.currencyCode) then
 	is_msgno = 'SM-0000001'
 	is_msgtrail = iuo_currency.lastSQLCode + "~r~n" + iuo_currency.lastSQLErrText
 	is_sugtrail = 'Error produced by iuo_currency.setCurrencyCode()'
 	return -1
-end if
+end IF
+
+--VALIDASI SETCURRENCYCODE
+		lastMethodAccessed = 'setCurrencyCode'
+		
+		if isnull(as_currencyCode) or trim(as_currencyCode) = '' then
+			lastSQLCode = '-2'
+			lastSQLErrText = 'Warning!' + '~r~n~r~n' + &
+									'Unable to set currency code, the argument being passed is null.'
+			return FALSE
+		end if
+		
+		currencyCode = as_currencyCode
+		
+		return TRUE	
+		
+--END VALIDASI SETCURRENCYCODE
+		
 if ad_applicationFee > 0 then
 	if not uo_subs_advar.insertNewAr(is_tranno, is_transactionID, 'EXTSF', ad_applicationFee, idt_trandate, string(idt_trandate, 'mmm yyyy'), &
 												iuo_subscriber.currencyCode, iuo_currency.conversionRate) then
@@ -2816,27 +2955,55 @@ if ad_applicationFee > 0 then
 		is_msgtrail = uo_subs_advar.lastSQLCode + "~r~n" + uo_subs_advar.lastSQLErrText
 		is_sugtrail = 'Error produced by uo_subs_advar.insertNewAr()'
 		return -1
-	end if
+	end IF
+	
+	--VALIDASI uo_subs_advar INSETNEWAR
+		
+		string	ls_glAccountCode
+		long		ll_row
+		integer	li_priority
+		
+		lastMethodAccessed = 'insertNewAR'
+		
+		
+		select priority
+		  into :li_priority
+		  from arTypeMaster
+		 where arTypeCode = :as_arTypeCode
+		 and divisionCode = :gs_divisionCode
+		and companyCode = :gs_companyCode
+		using SQLCA;
+		if SQLCA.sqlcode < 0 then
+			lastSQLCode = string(SQLCA.sqlcode)
+			lastSQLErrText = SQLCA.sqlerrtext
+			return FALSE
+		elseif SQLCA.sqlcode = 100 then
+			lastSQLCode = string(SQLCA.sqlcode)
+			lastSQLErrText = 'Unable to get the level of priority of AR Type Code: ' + as_arTypeCode
+			return FALSE
+		end if
+		
+		ll_row = dw_ar.insertrow(0)
+		dw_ar.setitem(ll_row, "tranno"				, as_tranno			)
+		dw_ar.setitem(ll_row, "trantypecode"		, as_trantypecode	)
+		dw_ar.setitem(ll_row, "artypecode"			, as_artypecode	)
+		dw_ar.setitem(ll_row, "artypecodepriority", li_priority		)
+		dw_ar.setitem(ll_row, "balance"				, ad_balance		)
+		dw_ar.setitem(ll_row, "newbalance"			, ad_balance		)
+		dw_ar.setitem(ll_row, "trandate"				, adt_trandate		)
+		dw_ar.setitem(ll_row, "remarks"				, as_remarks		)
+		dw_ar.setitem(ll_row, "artypename"			, ''					)
+		dw_ar.setitem(ll_row, "newrecord"			, 'Y'					)
+		dw_ar.setitem(ll_row, "transactionid"		, ''					)
+		dw_ar.setitem(ll_row, "groupsort"			, 3					)
+		dw_ar.setitem(ll_row, "currencyCode"		, as_currencyCode )
+		dw_ar.setitem(ll_row, "conversionRate"		, ad_conversionRate )
+		
+		return TRUE
 
-	/* --zar 03252010 
-	string ls_arAccount, ls_unearnedAccount, ls_errorMessage
 	
-	if not f_getArTypeArAccount('EXTSF', ls_arAccount, ls_errorMessage) then
-		is_msgNo 	= 'SM-0000001'
-		is_msgTrail = '-2' + '~r~n' + ls_errorMessage
-		is_SugTrail	= 'Errpr produced by [f_getArTypeArAccount]...'
-		return -1		
-	end if	
-	
-	if not f_getArTypeUnEarnedAccount('EXTSF', ls_unearnedAccount, ls_errorMessage) then
-		is_msgNo 	= 'SM-0000001'
-		is_msgTrail = '-2' + '~r~n' + ls_errorMessage
-		is_SugTrail	= 'Errpr produced by [f_getArTypeArAccount]...'
-		return -1		
-	end if	
-	
-	iuo_glPoster.insertGLEntryCredit(is_transactionID, is_tranNo, ls_unearnedAccount, ad_applicationFee)	
-	*/	
+	--END VALIDASI INSETNEWAR
+
 end if
 
 if not uo_subs_advar.applyOpenCreditMultiple('', '') then
@@ -3802,6 +3969,44 @@ end IF
 					if not f_getArTypeArAccount(as_artypecode, ls_arAccount, lastSQLErrText) then
 						return FALSE
 					end IF
+					
+					--VALIDASI F_GETARTYPEARACCOUNT
+	
+					--==================================================
+						--NGLara | 04-26-2008
+						--This function is primarily being used by Billing
+						--computation...
+						--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+						
+						if isnull(as_arTypeCode) then
+							as_errorMsg = 'Null AR Type Code is invalid.'
+							return False
+						end if
+						
+						select arAccount
+						  into :as_glAccountCode
+						  from arTypeMaster
+						 where arTypeCode = :as_arTypeCode
+						 and divisionCode = :gs_divisionCode
+						and companyCode = :gs_companyCode
+						using SQLCA;
+						if SQLCA.sqlcode = 100 then	// record not found
+							as_errorMsg  = 'AR Type Code : [' + as_arTypeCode + '] doest not exist.'
+							return False
+						elseif SQLCA.sqlcode < 0 then
+							as_errorMsg  = SQLCA.sqlerrtext
+							return False
+						end if
+						
+						if isnull(as_glAccountCode) or trim(as_glAccountCode) = '' then
+							as_errorMsg = 'The AR Account obtained was empty or null. Check the AR Type Code : [' + as_arTypeCode + '] in AR Type Maintenance'
+							return False
+						end if
+						
+						Return True
+				
+					
+					--END VALIDASI F_GETARTYPEARACCOUNT
 					
 					--ALREADY NOT USE IN  postGLEntries
 					iuo_glPoster.insertGLEntryDebit('SAV-IAR-DB', '03-chrg', ls_arAccount, ad_balance)
