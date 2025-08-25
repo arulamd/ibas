@@ -266,3 +266,6 @@ FROM arAcctSubscriber
                           AND companyCode = 'COMCL'
                         ORDER BY trandate ASC
                         FETCH FIRST 10 ROWS ONLY
+                        
+          SELECT * FROM divisionMaster   WHERE DIVISIONCODE ='ISG'
+          
